@@ -156,13 +156,22 @@ aws_sig_v4_test (const char *test_name)
 }
 
 int
-main (void)
+main (int argc, char *argv[])
 {
    /* Amazon supplies tests, one per directory, 5 files per test, see
     * docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html */
    /* TODO: test multibyte UTF-8 */
+   const char *help;
    DIR *dp;
    struct dirent *ent;
+   bool ran_tests = false;
+
+   help = "Usage: test_kms_request [TEST NAME]";
+
+   if (argc > 2) {
+      fprintf (stderr, help);
+      abort ();
+   }
 
    dp = opendir (aws_test_suite_dir);
    if (!dp) {
@@ -177,8 +186,14 @@ main (void)
          continue;
       }
 
+      /* skip the test if it doesn't match the name passed to us */
+      if (argc == 2 && 0 != strcmp (ent->d_name, argv[1])) {
+         continue;
+      }
+
       printf ("%s\n", ent->d_name);
       aws_sig_v4_test (ent->d_name);
+      ran_tests = true;
    }
 
    if (errno) {
@@ -188,6 +203,11 @@ main (void)
 
    (void) closedir (dp);
 
+   if (!ran_tests) {
+      assert (argc == 2);
+      fprintf (stderr, "No such test: \"%s\"\n", argv[1]);
+      abort ();
+   }
 
    return 0;
 }
