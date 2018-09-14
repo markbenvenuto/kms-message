@@ -75,8 +75,18 @@ kms_kv_list_add (kms_kv_list_t *lst,
 static int
 sort_kvs_cmp (const void *a, const void *b)
 {
-   return strcmp ((const char *) (((kms_kv_t *) a)->key->str),
-                  (const char *) (((kms_kv_t *) b)->key->str));
+   kms_kv_t *kv_a = (kms_kv_t *) a;
+   kms_kv_t *kv_b = (kms_kv_t *) b;
+
+   int r =
+      strcmp ((const char *) kv_a->key->str, (const char *) kv_b->key->str);
+
+   if (r != 0) {
+      return r;
+   }
+
+   return strcmp ((const char *) kv_a->value->str,
+                  (const char *) kv_b->value->str);
 }
 
 kms_kv_list_t *
@@ -97,7 +107,8 @@ kms_kv_list_sorted (kms_kv_list_t *lst)
       kv_init (&dup->kvs[i], lst->kvs[i].key, lst->kvs[i].value);
    }
 
-   qsort (dup->kvs, dup->len, sizeof (kms_kv_t), sort_kvs_cmp);
+   /* choose a stable sorting algorithm */
+   (void) mergesort (dup->kvs, dup->len, sizeof (kms_kv_t), sort_kvs_cmp);
 
    return dup;
 }

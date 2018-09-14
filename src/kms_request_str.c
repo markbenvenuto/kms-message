@@ -211,6 +211,16 @@ kms_request_str_append (kms_request_str_t *str, kms_request_str_t *appended)
 }
 
 void
+kms_request_str_append_char (kms_request_str_t *str, const uint8_t c)
+{
+   kms_request_str_reserve (str, 1);
+   *(str->str + str->len) = c;
+   ++str->len;
+   str->str[str->len] = '\0';
+}
+
+
+void
 kms_request_str_append_chars (kms_request_str_t *str, const uint8_t *appended)
 {
    size_t len = strlen ((const char *) appended);
@@ -223,7 +233,7 @@ kms_request_str_append_chars (kms_request_str_t *str, const uint8_t *appended)
 void
 kms_request_str_append_newline (kms_request_str_t *str)
 {
-   kms_request_str_append_chars (str, (const uint8_t *) "\n");
+   kms_request_str_append_char (str, (uint8_t) '\n');
 }
 
 void
@@ -278,5 +288,35 @@ kms_request_str_append_escaped (kms_request_str_t *str,
       }
 
       ++in;
+   }
+}
+
+void
+kms_request_str_append_stripped (kms_request_str_t *str,
+                                 kms_request_str_t *appended)
+{
+   const uint8_t *src = appended->str;
+   const uint8_t *end = appended->str + appended->len;
+
+   kms_request_str_reserve (str, appended->len);
+
+   while (isspace (*src)) {
+      ++src;
+   }
+
+   while (true) {
+      while (!isspace (*src) && src < end) {
+         kms_request_str_append_char (str, *src);
+         ++src;
+      }
+
+      if (src == end) {
+         break;
+      }
+
+      kms_request_str_append_char (str, (uint8_t) ' ');
+      while (isspace (*src)) {
+         ++src;
+      }
    }
 }

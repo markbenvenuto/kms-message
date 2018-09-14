@@ -200,6 +200,11 @@ main (int argc, char *argv[])
          continue;
       }
 
+      if (strstr (ent->d_name, "get-") != ent->d_name) {
+         /* TODO: test POST, and test the normalize-path subdir */
+         continue;
+      }
+
       printf ("%s\n", ent->d_name);
       aws_sig_v4_test (ent->d_name);
       ran_tests = true;

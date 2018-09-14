@@ -42,6 +42,8 @@ kms_request_str_tolower (kms_request_str_t *str);
 void
 kms_request_str_append (kms_request_str_t *str, kms_request_str_t *appended);
 void
+kms_request_str_append_char (kms_request_str_t *str, const uint8_t c);
+void
 kms_request_str_append_chars (kms_request_str_t *str, const uint8_t *appended);
 void
 kms_request_str_append_newline (kms_request_str_t *str);
@@ -53,5 +55,8 @@ kms_request_str_appendf (kms_request_str_t *str, const char *format, ...);
 void
 kms_request_str_append_escaped (kms_request_str_t *str,
                                 kms_request_str_t *appended);
+void
+kms_request_str_append_stripped (kms_request_str_t *str,
+                                 kms_request_str_t *appended);
 
 #endif // KMS_MESSAGE_KMS_REQUEST_STR_H

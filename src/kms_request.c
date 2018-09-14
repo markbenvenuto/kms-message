@@ -136,7 +136,6 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
    kms_kv_list_t *lst;
 
    if (!request->query_params->len) {
-      kms_request_str_append_newline (str);
       return;
    }
 
@@ -144,11 +143,11 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
 
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append_escaped (str, lst->kvs[i].key);
-      kms_request_str_append_chars (str, (const uint8_t *) "=");
+      kms_request_str_append_char (str, (uint8_t) '=');
       kms_request_str_append_escaped (str, lst->kvs[i].value);
 
       if (i < lst->len - 1) {
-         kms_request_str_append_chars (str, (const uint8_t *) "&");
+         kms_request_str_append_char (str, (uint8_t) '&');
       }
    }
 
@@ -156,33 +155,59 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
 }
 
 static void
-append_canonical_headers (kms_request_t *request, kms_request_str_t *str)
+append_canonical_headers (kms_kv_list_t *lst, kms_request_str_t *str)
 {
    size_t i;
-   kms_kv_list_t *lst;
 
-   /* AWS docs: "you must include the host header at a minimum" */
-   assert (request->header_fields->len >= 1);
-   lst = kms_kv_list_sorted (request->header_fields);
+   /* aws docs: "To create the canonical headers list, convert all header names
+    * to lowercase and remove leading spaces and trailing spaces. Convert
+    * sequential spaces in the header value to a single space." */
+   for (i = 0; i < lst->len; i++) {
+      kms_request_str_append_lowercase (str, lst->kvs[i].key);
+      kms_request_str_append_char (str, (uint8_t) ':');
+      kms_request_str_append_stripped (str, lst->kvs[i].value);
+      kms_request_str_append_newline (str);
+   }
+}
+
+static void
+append_signed_headers (kms_kv_list_t *lst, kms_request_str_t *str)
+{
+   size_t i;
 
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append_lowercase (str, lst->kvs[i].key);
-      kms_request_str_append_chars (str, (const uint8_t *) ":");
-      kms_request_str_append (str, lst->kvs[i].value);
-      kms_request_str_append_newline (str);
+      if (i < lst->len - 1) {
+         kms_request_str_append_char (str, (uint8_t) ';');
+      }
    }
+}
 
-   kms_kv_list_destroy (lst);
+static void
+append_signature (kms_kv_list_t *lst, kms_request_str_t *str)
+{
+   /* append the SHA256 of an empty payload */
+   /* TODO: handle non-empty payloads */
+   kms_request_str_append_chars (
+      str,
+      (const uint8_t *) "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca"
+                        "495991b7852b855");
 }
 
 uint8_t *
 kms_request_get_canonical (kms_request_t *request)
 {
    kms_request_str_t *canonical;
+   kms_kv_list_t *lst;
 
    if (request->failed) {
       return NULL;
    }
+
+   /* AWS docs: "you must include the host header at a minimum" */
+   assert (request->header_fields->len >= 1);
+   /* TODO: lowercase before sorting? */
+   lst = kms_kv_list_sorted (request->header_fields);
 
    canonical = kms_request_str_new ();
    kms_request_str_append (canonical, request->method);
@@ -191,7 +216,13 @@ kms_request_get_canonical (kms_request_t *request)
    kms_request_str_append_newline (canonical);
    append_canonical_query (request, canonical);
    kms_request_str_append_newline (canonical);
-   append_canonical_headers (request, canonical);
+   append_canonical_headers (lst, canonical);
+   kms_request_str_append_newline (canonical);
+   append_signed_headers (lst, canonical);
+   kms_request_str_append_newline (canonical);
+   append_signature (lst, canonical);
+
+   kms_kv_list_destroy (lst);
 
    return kms_request_str_detach (canonical, NULL);
 }
