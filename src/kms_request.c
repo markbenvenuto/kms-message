@@ -35,8 +35,39 @@ struct _kms_request_t {
    kms_request_str_t *method;
    kms_request_str_t *path;
    kms_request_str_t *query;
+   kms_kv_list_t *query_params;
    kms_kv_list_t *header_fields;
 };
+
+
+static kms_kv_list_t *
+parse_query_params (kms_request_str_t *q)
+{
+   kms_kv_list_t *lst = kms_kv_list_new ();
+   uint8_t *p = q->str;
+   uint8_t *end = q->str + q->len;
+   uint8_t *amp, *equals;
+   kms_request_str_t *k, *v;
+
+   do {
+      equals = (uint8_t *) strchr ((const char *) p, '=');
+      assert (equals);
+      amp = (uint8_t *) strchr ((const char *) equals, '&');
+      if (!amp) {
+         amp = end;
+      }
+
+      k = kms_request_str_new_from_chars (p, equals - p);
+      v = kms_request_str_new_from_chars (equals + 1, amp - equals - 1);
+      kms_kv_list_add (lst, k, v);
+      kms_request_str_destroy (k);
+      kms_request_str_destroy (v);
+
+      p = amp + 1;
+   } while (p < end);
+
+   return lst;
+}
 
 kms_request_t *
 kms_request_new (const uint8_t *method, const uint8_t *path_and_query)
@@ -48,11 +79,12 @@ kms_request_new (const uint8_t *method, const uint8_t *path_and_query)
    if (question_mark) {
       request->path = kms_request_str_new_from_chars (
          path_and_query, question_mark - path_and_query);
-      /* TODO: parse query string into array of names and values */
       request->query = kms_request_str_new_from_chars (question_mark + 1, -1);
+      request->query_params = parse_query_params (request->query);
    } else {
       request->path = kms_request_str_new_from_chars (path_and_query, -1);
       request->query = kms_request_str_new ();
+      request->query_params = kms_kv_list_new ();
    }
 
    request->failed = false;
@@ -68,6 +100,7 @@ kms_request_destroy (kms_request_t *request)
    kms_request_str_destroy (request->method);
    kms_request_str_destroy (request->path);
    kms_request_str_destroy (request->query);
+   kms_kv_list_destroy (request->query_params);
    kms_kv_list_destroy (request->header_fields);
    free (request);
 }
@@ -94,6 +127,32 @@ kms_request_add_header_field_from_chars (kms_request_t *request,
    kms_request_str_destroy (v);
 
    return true;
+}
+
+static void
+append_canonical_query (kms_request_t *request, kms_request_str_t *str)
+{
+   size_t i;
+   kms_kv_list_t *lst;
+
+   if (!request->query_params->len) {
+      kms_request_str_append_newline (str);
+      return;
+   }
+
+   lst = kms_kv_list_sorted (request->query_params);
+
+   for (i = 0; i < lst->len; i++) {
+      kms_request_str_append_escaped (str, lst->kvs[i].key);
+      kms_request_str_append_chars (str, (const uint8_t *) "=");
+      kms_request_str_append_escaped (str, lst->kvs[i].value);
+
+      if (i < lst->len - 1) {
+         kms_request_str_append_chars (str, (const uint8_t *) "&");
+      }
+   }
+
+   kms_kv_list_destroy (lst);
 }
 
 static void
@@ -130,7 +189,7 @@ kms_request_get_canonical (kms_request_t *request)
    kms_request_str_append_newline (canonical);
    kms_request_str_append (canonical, request->path);
    kms_request_str_append_newline (canonical);
-   kms_request_str_append_escaped (canonical, request->query);
+   append_canonical_query (request, canonical);
    kms_request_str_append_newline (canonical);
    append_canonical_headers (request, canonical);
 
