@@ -117,7 +117,7 @@ read_req (const char *test_name)
    while (getline (&line, &len, f) != -1) {
       field_name = strtok (line, ": ");
       assert (field_name);
-      field_value = strtok (NULL, "\n ");
+      field_value = strtok (NULL, "\n");
       assert (field_value);
       r = kms_request_add_header_field_from_chars (
          request, (uint8_t *) field_name, (uint8_t *) field_value);
@@ -135,17 +135,26 @@ aws_sig_v4_test (const char *test_name)
 {
    kms_request_t *request;
    uint8_t *creq_expect;
+   size_t creq_expect_len;
    uint8_t *creq_actual;
+   size_t creq_actual_len;
 
    request = read_req (test_name);
    /* canonical request */
    creq_expect = read_aws_test (test_name, "creq");
+   creq_expect_len = strlen ((char *) creq_expect);
    creq_actual = kms_request_get_canonical (request);
+   creq_actual_len = strlen ((char *) creq_actual);
 
-   if (0 != memcmp (creq_expect, creq_actual, strlen ((char *) creq_actual))) {
+   if (creq_expect_len != creq_actual_len ||
+       0 != memcmp (creq_expect, creq_actual, strlen ((char *) creq_actual))) {
       fprintf (stderr,
-               "Failed.\n--- Expect ---\n%s\n--- Actual ---\n%s\n",
+               "Failed.\n"
+               "--- Expect (%zu chars) ---\n%s\n"
+               "--- Actual (%zu chars) ---\n%s\n",
+               creq_expect_len,
                creq_expect,
+               creq_actual_len,
                creq_actual);
       abort ();
    }
