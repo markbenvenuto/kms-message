@@ -14,25 +14,36 @@
  * limitations under the License.
  */
 
-#ifndef KMS_REQUEST_H
-#define KMS_REQUEST_H
+#ifndef KMS_KV_LIST_H
+#define KMS_KV_LIST_H
+
+#include "kms_request_str.h"
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-typedef struct _kms_request_t kms_request_t;
+/* key-value pair */
+typedef struct {
+   kms_request_str_t *key;
+   kms_request_str_t *value;
+} kms_kv_t;
 
-kms_request_t *
-kms_request_new (const uint8_t *method, const uint8_t *path_and_query);
+typedef struct {
+   kms_kv_t *kvs;
+   size_t len;
+   size_t size;
+} kms_kv_list_t;
+
+kms_kv_list_t *
+kms_kv_list_new (void);
 void
-kms_request_destroy (kms_request_t *request);
-const uint8_t *
-kms_request_get_error (kms_request_t *request);
-bool
-kms_request_add_header_field_from_chars (kms_request_t *request,
-                                         const uint8_t *field_name,
-                                         const uint8_t *value);
-uint8_t *
-kms_request_get_canonical (kms_request_t *request);
+kms_kv_list_destroy (kms_kv_list_t *lst);
+void
+kms_kv_list_add (kms_kv_list_t *lst,
+                 kms_request_str_t *key,
+                 kms_request_str_t *value);
+kms_kv_list_t *
+kms_kv_list_sorted (kms_kv_list_t *lst);
 
-#endif /* KMS_REQUEST_H */
+#endif /* KMS_KV_LIST_H */

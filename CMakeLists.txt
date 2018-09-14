@@ -5,10 +5,14 @@ set (CMAKE_C_STANDARD 90)
 
 add_library (
    kms_message SHARED
+   src/kms_kv_list.c
+   src/kms_kv_list.h
    src/kms_message.h
    src/kms_request.c
    src/kms_request.h
-   src/kms_request_str.c src/kms_request_str.h)
+   src/kms_request_str.c
+   src/kms_request_str.h
+)
 
 add_executable (
    test_kms_request

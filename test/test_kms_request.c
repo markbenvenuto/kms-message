@@ -119,7 +119,7 @@ read_req (const char *test_name)
       assert (field_name);
       field_value = strtok (NULL, "\n ");
       assert (field_value);
-      r = kms_request_add_header_field (
+      r = kms_request_add_header_field_from_chars (
          request, (uint8_t *) field_name, (uint8_t *) field_value);
       assert (r);
    }
