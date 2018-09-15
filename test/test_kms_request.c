@@ -115,13 +115,20 @@ read_req (const char *test_name)
    /* all test files use the same host */
    request = kms_request_new ((uint8_t *) method, (uint8_t *) uri_path);
    while (getline (&line, &len, f) != -1) {
-      field_name = strtok (line, ": ");
-      assert (field_name);
-      field_value = strtok (NULL, "\n");
-      assert (field_value);
-      r = kms_request_add_header_field_from_chars (
-         request, (uint8_t *) field_name, (uint8_t *) field_value);
-      assert (r);
+      if (strchr (line, ':')) {
+         /* new header field like Host:example.com */
+         field_name = strtok (line, ": ");
+         assert (field_name);
+         field_value = strtok (NULL, "\n");
+         assert (field_value);
+         r = kms_request_add_header_field_from_chars (
+            request, (uint8_t *) field_name, (uint8_t *) field_value);
+         assert (r);
+      } else {
+         /* continuing a multiline header from previous line */
+         /* TODO: is this a test quirk or HTTP specified behavior? */
+         kms_request_append_header_field_value_from_chars (request, line);
+      }
    }
 
    fclose (f);

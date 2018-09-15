@@ -32,6 +32,9 @@ bool
 kms_request_add_header_field_from_chars (kms_request_t *request,
                                          const uint8_t *field_name,
                                          const uint8_t *value);
+bool
+kms_request_append_header_field_value_from_chars (kms_request_t *request,
+                                                  const uint8_t *value);
 uint8_t *
 kms_request_get_canonical (kms_request_t *request);
 

@@ -297,6 +297,7 @@ kms_request_str_append_stripped (kms_request_str_t *str,
 {
    const uint8_t *src = appended->str;
    const uint8_t *end = appended->str + appended->len;
+   bool space = false;
 
    kms_request_str_reserve (str, appended->len);
 
@@ -304,19 +305,19 @@ kms_request_str_append_stripped (kms_request_str_t *str,
       ++src;
    }
 
-   while (true) {
-      while (!isspace (*src) && src < end) {
+   while (src < end) {
+      if (isspace (*src)) {
+         space = true;
+      } else {
+         /* is there a run of spaces waiting to be written as one space? */
+         if (space) {
+            kms_request_str_append_char (str, ' ');
+            space = false;
+         }
+
          kms_request_str_append_char (str, *src);
-         ++src;
       }
 
-      if (src == end) {
-         break;
-      }
-
-      kms_request_str_append_char (str, (uint8_t) ' ');
-      while (isspace (*src)) {
-         ++src;
-      }
+      ++src;
    }
 }

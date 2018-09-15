@@ -129,6 +129,29 @@ kms_request_add_header_field_from_chars (kms_request_t *request,
    return true;
 }
 
+bool
+kms_request_append_header_field_value_from_chars (kms_request_t *request,
+                                                  const uint8_t *value)
+{
+   kms_request_str_t *v;
+   kms_request_str_t *s;
+
+   CHECK_FAILED;
+
+   if (request->header_fields->len == 0) {
+      /* TODO: set error */
+      return false;
+   }
+
+   v = request->header_fields->kvs[request->header_fields->len - 1].value;
+   kms_request_str_append_char (v, ',');
+   s = kms_request_str_new_from_chars (value, -1);
+   kms_request_str_append_stripped (v, s);
+   kms_request_str_destroy (s);
+
+   return true;
+}
+
 static void
 append_canonical_query (kms_request_t *request, kms_request_str_t *str)
 {
