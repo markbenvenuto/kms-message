@@ -263,7 +263,8 @@ kms_request_str_appendf (kms_request_str_t *str, const char *format, ...)
 
 void
 kms_request_str_append_escaped (kms_request_str_t *str,
-                                kms_request_str_t *appended)
+                                kms_request_str_t *appended,
+                                bool escape_slash)
 {
    uint8_t *in;
    uint8_t *out;
@@ -277,7 +278,7 @@ kms_request_str_append_escaped (kms_request_str_t *str,
    out = str->str + str->len;
 
    for (i = 0; i < appended->len; ++i) {
-      if (rfc_3986_tab[*in]) {
+      if (rfc_3986_tab[*in] || (*in == '/' && !escape_slash)) {
          *out = *in;
          ++out;
          ++str->len;

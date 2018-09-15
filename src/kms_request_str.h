@@ -18,6 +18,7 @@
 #define KMS_MESSAGE_KMS_REQUEST_STR_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -54,7 +55,8 @@ void
 kms_request_str_appendf (kms_request_str_t *str, const char *format, ...);
 void
 kms_request_str_append_escaped (kms_request_str_t *str,
-                                kms_request_str_t *appended);
+                                kms_request_str_t *appended,
+                                bool escape_slash);
 void
 kms_request_str_append_stripped (kms_request_str_t *str,
                                  kms_request_str_t *appended);

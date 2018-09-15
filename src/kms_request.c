@@ -165,9 +165,9 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
    lst = kms_kv_list_sorted (request->query_params);
 
    for (i = 0; i < lst->len; i++) {
-      kms_request_str_append_escaped (str, lst->kvs[i].key);
+      kms_request_str_append_escaped (str, lst->kvs[i].key, true);
       kms_request_str_append_char (str, (uint8_t) '=');
-      kms_request_str_append_escaped (str, lst->kvs[i].value);
+      kms_request_str_append_escaped (str, lst->kvs[i].value, true);
 
       if (i < lst->len - 1) {
          kms_request_str_append_char (str, (uint8_t) '&');
@@ -235,7 +235,7 @@ kms_request_get_canonical (kms_request_t *request)
    canonical = kms_request_str_new ();
    kms_request_str_append (canonical, request->method);
    kms_request_str_append_newline (canonical);
-   kms_request_str_append (canonical, request->path);
+   kms_request_str_append_escaped (canonical, request->path, false);
    kms_request_str_append_newline (canonical);
    append_canonical_query (request, canonical);
    kms_request_str_append_newline (canonical);
