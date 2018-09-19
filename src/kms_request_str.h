@@ -45,7 +45,9 @@ kms_request_str_append (kms_request_str_t *str, kms_request_str_t *appended);
 void
 kms_request_str_append_char (kms_request_str_t *str, const uint8_t c);
 void
-kms_request_str_append_chars (kms_request_str_t *str, const uint8_t *appended);
+kms_request_str_append_chars (kms_request_str_t *str,
+                              const uint8_t *appended,
+                              size_t len);
 void
 kms_request_str_append_newline (kms_request_str_t *str);
 void

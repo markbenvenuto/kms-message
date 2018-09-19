@@ -19,6 +19,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 typedef struct _kms_request_t kms_request_t;
 
@@ -35,6 +36,9 @@ kms_request_add_header_field_from_chars (kms_request_t *request,
 bool
 kms_request_append_header_field_value_from_chars (kms_request_t *request,
                                                   const uint8_t *value);
+bool
+kms_request_append_payload_from_chars (kms_request_t *request,
+                                       const uint8_t *payload);
 uint8_t *
 kms_request_get_canonical (kms_request_t *request);
 

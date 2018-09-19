@@ -26,6 +26,26 @@
 
 static const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
 
+static const char *skipped_aws_tests[] = {
+   /* assume no duplicate headers */
+   "get-header-value-order",
+   "normalize-path",
+   "post-sts-token",
+};
+
+static bool
+skip_aws_test (const char *test_name)
+{
+   size_t i;
+
+   for (i = 0; i < sizeof (skipped_aws_tests) / sizeof (char *); i++) {
+      if (0 == strcmp (test_name, skipped_aws_tests[i])) {
+         return true;
+      }
+   }
+
+   return false;
+}
 
 static char *
 aws_test_path (const char *test_name, const char *suffix)
@@ -123,11 +143,19 @@ read_req (const char *test_name)
          r = kms_request_add_header_field_from_chars (
             request, (uint8_t *) field_name, (uint8_t *) field_value);
          assert (r);
+      } else if (0 == strcmp (line, "\n")) {
+         /* end of header */
+         break;
       } else {
          /* continuing a multiline header from previous line */
          /* TODO: is this a test quirk or HTTP specified behavior? */
-         kms_request_append_header_field_value_from_chars (request, line);
+         kms_request_append_header_field_value_from_chars (request,
+                                                           (uint8_t *) line);
       }
+   }
+
+   while (getline (&line, &len, f) != -1) {
+      kms_request_append_payload_from_chars (request, (uint8_t *) line);
    }
 
    fclose (f);
@@ -184,7 +212,7 @@ main (int argc, char *argv[])
    help = "Usage: test_kms_request [TEST NAME]";
 
    if (argc > 2) {
-      fprintf (stderr, help);
+      fprintf (stderr, "%s\n", help);
       abort ();
    }
 
@@ -196,6 +224,7 @@ main (int argc, char *argv[])
 
    errno = 0;
 
+   /* TODO: test the normalize-path subdir */
    while ((ent = readdir (dp))) {
       if (ent->d_type != DT_DIR || ent->d_name[0] == '.') {
          continue;
@@ -206,8 +235,8 @@ main (int argc, char *argv[])
          continue;
       }
 
-      if (strstr (ent->d_name, "get-") != ent->d_name) {
-         /* TODO: test POST, and test the normalize-path subdir */
+      if (skip_aws_test (ent->d_name)) {
+         printf ("SKIP: %s\n", ent->d_name);
          continue;
       }
 

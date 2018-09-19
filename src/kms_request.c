@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include "kms_crypto.h"
 #include "kms_message.h"
 #include "kms_private.h"
 #include "kms_request_str.h"
@@ -35,6 +36,7 @@ struct _kms_request_t {
    kms_request_str_t *method;
    kms_request_str_t *path;
    kms_request_str_t *query;
+   kms_request_str_t *payload;
    kms_kv_list_t *query_params;
    kms_kv_list_t *header_fields;
 };
@@ -73,7 +75,7 @@ kms_request_t *
 kms_request_new (const uint8_t *method, const uint8_t *path_and_query)
 {
    const uint8_t *question_mark;
-   kms_request_t *request = malloc (sizeof (kms_request_t));
+   kms_request_t *request = calloc (sizeof (kms_request_t), 1);
 
    question_mark = (uint8_t *) strchr ((const char *) path_and_query, '?');
    if (question_mark) {
@@ -88,6 +90,7 @@ kms_request_new (const uint8_t *method, const uint8_t *path_and_query)
    }
 
    request->failed = false;
+   request->payload = kms_request_str_new ();
    request->method = kms_request_str_new_from_chars (method, -1);
    request->header_fields = kms_kv_list_new ();
 
@@ -100,6 +103,7 @@ kms_request_destroy (kms_request_t *request)
    kms_request_str_destroy (request->method);
    kms_request_str_destroy (request->path);
    kms_request_str_destroy (request->query);
+   kms_request_str_destroy (request->payload);
    kms_kv_list_destroy (request->query_params);
    kms_kv_list_destroy (request->header_fields);
    free (request);
@@ -148,6 +152,18 @@ kms_request_append_header_field_value_from_chars (kms_request_t *request,
    s = kms_request_str_new_from_chars (value, -1);
    kms_request_str_append_stripped (v, s);
    kms_request_str_destroy (s);
+
+   return true;
+}
+
+bool
+kms_request_append_payload_from_chars (kms_request_t *request,
+                                       const uint8_t *payload)
+{
+   CHECK_FAILED;
+
+   kms_request_str_append_chars (
+      request->payload, payload, strlen ((char *) payload));
 
    return true;
 }
@@ -206,15 +222,23 @@ append_signed_headers (kms_kv_list_t *lst, kms_request_str_t *str)
    }
 }
 
-static void
-append_signature (kms_kv_list_t *lst, kms_request_str_t *str)
+static bool
+append_hashed_payload (kms_request_t *request, kms_request_str_t *str)
 {
-   /* append the SHA256 of an empty payload */
-   /* TODO: handle non-empty payloads */
+   uint8_t signature[32];
+   char *hex_chars;
+
+   if (!kms_sha256 (request->payload->str, request->payload->len, signature)) {
+      /* TODO: set error */
+      return false;
+   }
+
+   hex_chars = hexlify (signature, sizeof (signature));
    kms_request_str_append_chars (
-      str,
-      (const uint8_t *) "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca"
-                        "495991b7852b855");
+      str, (uint8_t *) hex_chars, 2 * sizeof (signature));
+   free (hex_chars);
+
+   return true;
 }
 
 uint8_t *
@@ -243,7 +267,7 @@ kms_request_get_canonical (kms_request_t *request)
    kms_request_str_append_newline (canonical);
    append_signed_headers (lst, canonical);
    kms_request_str_append_newline (canonical);
-   append_signature (lst, canonical);
+   append_hashed_payload (request, canonical);
 
    kms_kv_list_destroy (lst);
 

@@ -14,7 +14,13 @@ add_library (
    src/kms_request.h
    src/kms_request_str.c
    src/kms_request_str.h
+   src/kms_crypto.c
+   src/kms_crypto.h
 )
+
+include (FindOpenSSL)
+target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
+target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
 
 add_executable (
    test_kms_request

@@ -221,9 +221,10 @@ kms_request_str_append_char (kms_request_str_t *str, const uint8_t c)
 
 
 void
-kms_request_str_append_chars (kms_request_str_t *str, const uint8_t *appended)
+kms_request_str_append_chars (kms_request_str_t *str,
+                              const uint8_t *appended,
+                              size_t len)
 {
-   size_t len = strlen ((const char *) appended);
    kms_request_str_reserve (str, len);
    memcpy (str->str + str->len, appended, len);
    str->len += len;
