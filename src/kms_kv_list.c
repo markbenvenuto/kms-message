@@ -51,6 +51,10 @@ kms_kv_list_destroy (kms_kv_list_t *lst)
 {
    size_t i;
 
+   if (!lst) {
+      return;
+   }
+
    for (i = 0; i < lst->len; i++) {
       kv_cleanup (&lst->kvs[i]);
    }
@@ -103,6 +107,7 @@ sort_kvs_cmp (const void *a, const void *b)
    return strcmp (kv_a->value->str, kv_b->value->str);
 }
 
+/* TODO: lowercase before sorting? */
 kms_kv_list_t *
 kms_kv_list_sorted (kms_kv_list_t *lst)
 {

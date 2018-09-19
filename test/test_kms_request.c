@@ -24,6 +24,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <src/kms_request_str.h>
 
 const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
 
@@ -212,32 +213,23 @@ aws_sig_v4_test (const char *test_name)
    kms_request_t *request;
 
    request = read_req (test_name);
-   /* canonical request */
    aws_sig_v4_test_compare (
       request, kms_request_get_canonical, test_name, "creq");
-   /* string to sign */
    aws_sig_v4_test_compare (
       request, kms_request_get_string_to_sign, test_name, "sts");
+   aws_sig_v4_test_compare (
+      request, kms_request_get_signature, test_name, "authz");
    kms_request_destroy (request);
 }
 
-int
-main (int argc, char *argv[])
+bool
+spec_tests (const char *selected)
 {
    /* Amazon supplies tests, one per directory, 5 files per test, see
     * docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html */
-   /* TODO: test multibyte UTF-8 */
-   const char *help;
    DIR *dp;
    struct dirent *ent;
    bool ran_tests = false;
-
-   help = "Usage: test_kms_request [TEST NAME]";
-
-   if (argc > 2) {
-      fprintf (stderr, "%s\n", help);
-      abort ();
-   }
 
    dp = opendir (aws_test_suite_dir);
    if (!dp) {
@@ -254,7 +246,7 @@ main (int argc, char *argv[])
       }
 
       /* skip the test if it doesn't match the name passed to us */
-      if (argc == 2 && 0 != strcmp (ent->d_name, argv[1])) {
+      if (selected && 0 != strcmp (ent->d_name, selected)) {
          continue;
       }
 
@@ -275,11 +267,82 @@ main (int argc, char *argv[])
 
    (void) closedir (dp);
 
+   return ran_tests;
+}
+
+/* docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html */
+void
+example_signature_test (void)
+{
+   const char *expect =
+      "c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9";
+   kms_request_t *request;
+   unsigned char signing[32];
+   kms_request_str_t *sig;
+
+   request = kms_request_new ("GET", "uri");
+   kms_request_add_header_field_from_chars (
+      request, "X-Amz-Date", "20150830T123600Z");
+   kms_request_set_region (request, "us-east-1");
+   kms_request_set_service (request, "iam");
+   kms_request_set_secret_key (request,
+                               "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
+
+   assert (kms_request_get_signing_key (request, signing));
+   sig = kms_request_str_new ();
+   kms_request_str_append_hex (sig, signing, sizeof (signing));
+   if (strlen (expect) != sig->len ||
+       0 != memcmp (expect, sig->str, sig->len)) {
+      fprintf (stderr,
+               "%s failed\n"
+               "--- Expect ---\n%s\n"
+               "--- Actual ---\n%s\n",
+               __FUNCTION__,
+               expect,
+               sig->str);
+      abort ();
+   }
+
+   kms_request_str_destroy (sig);
+   kms_request_destroy (request);
+}
+
+#define RUN_TEST(_func)                                     \
+   do {                                                     \
+      if (selector && 0 != strcasecmp (#_func, selector)) { \
+         printf ("SKIP: %s\n", #_func);                     \
+      } else {                                              \
+         printf ("%s\n", #_func);                           \
+         _func ();                                          \
+         ran_tests = true;                                  \
+      }                                                     \
+   } while (0)
+
+
+/* TODO: test multibyte UTF-8 */
+int
+main (int argc, char *argv[])
+{
+   const char *selector = NULL;
+   const char *help;
+   bool ran_tests = false;
+
+   help = "Usage: test_kms_request [TEST_NAME]";
+
+   if (argc > 2) {
+      fprintf (stderr, "%s\n", help);
+      abort ();
+   } else if (argc == 2) {
+      selector = argv[1];
+   }
+
+   RUN_TEST (example_signature_test);
+
+   ran_tests |= spec_tests (selector);
+
    if (!ran_tests) {
       assert (argc == 2);
       fprintf (stderr, "No such test: \"%s\"\n", argv[1]);
       abort ();
    }
-
-   return 0;
 }

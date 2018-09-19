@@ -53,6 +53,8 @@ kms_request_str_t *
 kms_request_get_canonical (kms_request_t *request);
 kms_request_str_t *
 kms_request_get_string_to_sign (kms_request_t *request);
+bool
+kms_request_get_signing_key (kms_request_t *request, unsigned char *key);
 kms_request_str_t *
 kms_request_get_signature (kms_request_t *request);
 

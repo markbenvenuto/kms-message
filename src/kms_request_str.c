@@ -23,6 +23,8 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
 
 bool rfc_3986_tab[256] = {0};
 bool kms_initialized = false;
@@ -73,27 +75,6 @@ kms_strdupv_printf (const char *format, va_list args)
 
       buf = realloc (buf, (size_t) len);
    }
-}
-
-char *
-kms_strdup_printf (const char *format, ...)
-{
-   va_list args;
-   char *ret;
-
-   assert (format);
-
-   va_start (args, format);
-   ret = kms_strdupv_printf (format, args);
-   va_end (args);
-
-   return ret;
-}
-
-static int
-sort_strs_cmp (const void *a, const void *b)
-{
-   return strcmp (*(const char **) a, *(const char **) b);
 }
 
 static void
@@ -154,6 +135,10 @@ kms_request_str_new_from_chars (const char *chars, ssize_t len)
 void
 kms_request_str_destroy (kms_request_str_t *str)
 {
+   if (!str) {
+      return;
+   }
+
    free (str->str);
    free (str);
 }
@@ -177,36 +162,6 @@ kms_request_str_set_chars (kms_request_str_t *str, const char *chars)
    kms_request_str_reserve (str, len); /* adds 1 for nil */
    memcpy (str->str, chars, len + 1);
    str->len = len;
-}
-
-char *
-kms_request_str_detach (kms_request_str_t *str, size_t *len)
-{
-   char *s = str->str;
-
-   if (len) {
-      *len = str->len;
-   }
-
-   free (str);
-   return s;
-}
-
-/* TODO: remove? */
-kms_request_str_t *
-kms_request_str_tolower (kms_request_str_t *str)
-{
-   kms_request_str_t *dup = kms_request_str_dup (str);
-   char *p = dup->str;
-
-   for (; *p; ++p) {
-      /* ignore UTF-8 non-ASCII chars, which have 1 in the top bit */
-      if ((*(uint8_t *) p & (0x1U << 7U)) == 0) {
-         *p = (char) tolower (*p);
-      }
-   }
-
-   return dup;
 }
 
 void
@@ -273,6 +228,31 @@ kms_request_str_append_lowercase (kms_request_str_t *str,
 void
 kms_request_str_appendf (kms_request_str_t *str, const char *format, ...)
 {
+   va_list args;
+   size_t remaining;
+   int n;
+
+   assert (format);
+
+   while (true) {
+      remaining = str->size - str->len;
+
+      va_start (args, format);
+      n = vsnprintf (&str->str[str->len], remaining, format, args);
+      va_end (args);
+
+      if (n > -1 && n < remaining) {
+         /* success */
+         return;
+      }
+
+      if (n > -1) {
+         kms_request_str_reserve (str, (size_t) n);
+      } else {
+         /* TODO: error! */
+         abort ();
+      }
+   }
 }
 
 void
@@ -350,6 +330,20 @@ kms_request_str_append_hashed (kms_request_str_t *str,
 
    hex_chars = hexlify (hash, sizeof (hash));
    kms_request_str_append_chars (str, hex_chars, 2 * sizeof (hash));
+   free (hex_chars);
+
+   return true;
+}
+
+bool
+kms_request_str_append_hex (kms_request_str_t *str,
+                            unsigned char *data,
+                            size_t len)
+{
+   char *hex_chars;
+
+   hex_chars = hexlify (data, len);
+   kms_request_str_append_chars (str, hex_chars, len * 2);
    free (hex_chars);
 
    return true;

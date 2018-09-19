@@ -19,8 +19,11 @@
 #include "kms_kv_list.h"
 #include "kms_message.h"
 #include "kms_private.h"
+#include "kms_request_str.h"
 
 #include <assert.h>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
 
 #define CHECK_FAILED         \
    do {                      \
@@ -40,6 +43,8 @@ struct _kms_request_t {
    kms_request_str_t *path;
    kms_request_str_t *query;
    kms_request_str_t *payload;
+   kms_request_str_t *datetime;
+   kms_request_str_t *date;
    kms_kv_list_t *query_params;
    kms_kv_list_t *header_fields;
 };
@@ -99,6 +104,8 @@ kms_request_new (const char *method, const char *path_and_query)
 
    request->failed = false;
    request->payload = kms_request_str_new ();
+   request->datetime = kms_request_str_new ();
+   request->date = kms_request_str_new ();
    request->method = kms_request_str_new_from_chars (method, -1);
    request->header_fields = kms_kv_list_new ();
 
@@ -116,6 +123,8 @@ kms_request_destroy (kms_request_t *request)
    kms_request_str_destroy (request->path);
    kms_request_str_destroy (request->query);
    kms_request_str_destroy (request->payload);
+   kms_request_str_destroy (request->datetime);
+   kms_request_str_destroy (request->date);
    kms_kv_list_destroy (request->query_params);
    kms_kv_list_destroy (request->header_fields);
    free (request);
@@ -161,14 +170,30 @@ kms_request_add_header_field_from_chars (kms_request_t *request,
                                          const char *value)
 {
    kms_request_str_t *k, *v;
+   char *t;
 
    CHECK_FAILED;
 
    k = kms_request_str_new_from_chars (field_name, -1);
    v = kms_request_str_new_from_chars (value, -1);
    kms_kv_list_add (request->header_fields, k, v);
+
+   /* get date from X-Amz-Date header like "20150830T123600Z", split on "T" */
+   if (!strcasecmp (field_name, "X-Amz-Date")) {
+      kms_request_str_destroy (request->date);
+      if ((t = strchr (v->str, 'T'))) {
+         request->date = kms_request_str_new_from_chars (v->str, t - v->str);
+      } else {
+         request->date = kms_request_str_dup (v);
+      }
+
+      kms_request_str_destroy (request->datetime);
+      request->datetime = v;
+   } else {
+      kms_request_str_destroy (v);
+   }
+
    kms_request_str_destroy (k);
-   kms_request_str_destroy (v);
 
    return true;
 }
@@ -271,7 +296,6 @@ kms_request_get_canonical (kms_request_t *request)
 
    /* AWS docs: "you must include the host header at a minimum" */
    assert (request->header_fields->len >= 1);
-   /* TODO: lowercase before sorting? */
    lst = kms_kv_list_sorted (request->header_fields);
 
    canonical = kms_request_str_new ();
@@ -295,10 +319,9 @@ kms_request_get_canonical (kms_request_t *request)
 kms_request_str_t *
 kms_request_get_string_to_sign (kms_request_t *request)
 {
+   bool success = false;
    kms_request_str_t *sts;
    kms_request_str_t *creq = NULL; /* canonical request */
-   const kms_kv_t *amz_date_header;
-   char *t;
 
    if (request->failed) {
       return NULL;
@@ -306,23 +329,11 @@ kms_request_get_string_to_sign (kms_request_t *request)
 
    sts = kms_request_str_new ();
    kms_request_str_append_chars (sts, "AWS4-HMAC-SHA256\n", -1);
-   amz_date_header = kms_kv_list_find (request->header_fields, "X-Amz-Date");
-   if (!amz_date_header) {
-      goto error;
-   }
-
-   kms_request_str_append (sts, amz_date_header->value);
+   kms_request_str_append (sts, request->datetime);
    kms_request_str_append_newline (sts);
 
    /* credential scope, like "20150830/us-east-1/service/aws4_request" */
-   /* get date from X-Amz-Date header like "20150830T123600Z", split on "T" */
-   if ((t = strchr (amz_date_header->value->str, 'T'))) {
-      kms_request_str_append_chars (
-         sts, amz_date_header->value->str, t - amz_date_header->value->str);
-   } else {
-      kms_request_str_append (sts, amz_date_header->value);
-   }
-
+   kms_request_str_append (sts, request->date);
    kms_request_str_append_char (sts, '/');
    kms_request_str_append (sts, request->region);
    kms_request_str_append_char (sts, '/');
@@ -331,14 +342,134 @@ kms_request_get_string_to_sign (kms_request_t *request)
 
    creq = kms_request_get_canonical (request);
    if (!kms_request_str_append_hashed (sts, creq)) {
-      goto error;
+      goto done;
    }
 
+   success = true;
+done:
    kms_request_str_destroy (creq);
-   return sts;
+   if (!success) {
+      kms_request_str_destroy (sts);
+      sts = NULL;
+   }
 
-error:
-   kms_request_str_destroy (creq);
+   return sts;
+}
+
+static bool
+kms_request_hmac (unsigned char *out,
+                  kms_request_str_t *key,
+                  kms_request_str_t *data)
+{
+   return HMAC (EVP_sha256 (),
+                key->str,
+                (int) key->len,
+                (unsigned char *) data->str,
+                data->len,
+                out,
+                NULL) != NULL;
+}
+
+static bool
+kms_request_hmac_again (unsigned char *out,
+                        unsigned char *in,
+                        kms_request_str_t *data)
+{
+   return HMAC (EVP_sha256 (),
+                in,
+                32,
+                (unsigned char *) data->str,
+                data->len,
+                out,
+                NULL) != NULL;
+}
+
+bool
+kms_request_get_signing_key (kms_request_t *request, unsigned char *key)
+{
+   bool success = false;
+   kms_request_str_t *aws4_plus_secret = NULL;
+   kms_request_str_t *aws4_request = NULL;
+   unsigned char k_date[32];
+   unsigned char k_region[32];
+   unsigned char k_service[32];
+
+   /* docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html
+    * Pseudocode for deriving a signing key
+    *
+    * kSecret = your secret access key
+    * kDate = HMAC("AWS4" + kSecret, Date)
+    * kRegion = HMAC(kDate, Region)
+    * kService = HMAC(kRegion, Service)
+    * kSigning = HMAC(kService, "aws4_request")
+    */
+   aws4_plus_secret = kms_request_str_new_from_chars ("AWS4", -1);
+   kms_request_str_append (aws4_plus_secret, request->secret_key);
+
+   aws4_request = kms_request_str_new_from_chars ("aws4_request", -1);
+
+   if (!(kms_request_hmac (k_date, aws4_plus_secret, request->date) &&
+         kms_request_hmac_again (k_region, k_date, request->region) &&
+         kms_request_hmac_again (k_service, k_region, request->service) &&
+         kms_request_hmac_again (key, k_service, aws4_request))) {
+      goto done;
+   }
+
+   success = true;
+done:
+   kms_request_str_destroy (aws4_plus_secret);
+   kms_request_str_destroy (aws4_request);
+
+   return success;
+}
+
+kms_request_str_t *
+kms_request_get_signature (kms_request_t *request)
+{
+   bool success = false;
+   kms_kv_list_t *lst = NULL;
+   kms_request_str_t *sig = NULL;
+   kms_request_str_t *sts = NULL;
+   unsigned char signing_key[32];
+   unsigned char signature[32];
+
+   if (request->failed) {
+      return NULL;
+   }
+
+   sts = kms_request_get_string_to_sign (request);
+   if (!sts) {
+      goto done;
+   }
+
+   sig = kms_request_str_new ();
+   kms_request_str_append_chars (sig, "AWS4-HMAC-SHA256 Credential=", -1);
+   kms_request_str_append (sig, request->access_key_id);
+   kms_request_str_append_char (sig, '/');
+   kms_request_str_append (sig, request->date);
+   kms_request_str_append_char (sig, '/');
+   kms_request_str_append (sig, request->region);
+   kms_request_str_append_char (sig, '/');
+   kms_request_str_append (sig, request->service);
+   kms_request_str_append_chars (sig, "/aws4_request, SignedHeaders=", -1);
+   lst = kms_kv_list_sorted (request->header_fields);
+   append_signed_headers (lst, sig);
+   kms_request_str_append_chars (sig, ", Signature=", -1);
+   if (!(kms_request_get_signing_key (request, signing_key) &&
+         kms_request_hmac_again (signature, signing_key, sts))) {
+      goto done;
+   }
+
+   kms_request_str_append_hex (sig, signature, sizeof (signature));
+   success = true;
+done:
+   kms_kv_list_destroy (lst);
    kms_request_str_destroy (sts);
-   return NULL;
+
+   if (!success) {
+      kms_request_str_destroy (sig);
+      sig = NULL;
+   }
+
+   return sig;
 }
