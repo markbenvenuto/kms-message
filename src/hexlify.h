@@ -17,14 +17,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define RUN_TEST(_func)        \
-   do {                        \
-      printf ("%s\n", #_func); \
-      _func ();                \
-   } while (0)
-
-
 char *
-hexlify (uint8_t *buf, size_t len);
+hexlify (const uint8_t *buf, size_t len);
 uint8_t *
 unhexlify (const char *hex_chars, size_t *len);

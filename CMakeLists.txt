@@ -5,6 +5,8 @@ set (CMAKE_C_STANDARD 90)
 
 add_library (
    kms_message SHARED
+   src/hexlify.c
+   src/hexlify.h
    src/kms_kv_list.c
    src/kms_kv_list.h
    src/kms_message.h
@@ -16,8 +18,6 @@ add_library (
 
 add_executable (
    test_kms_request
-   test/test_kms.c
-   test/test_kms.h
    test/test_kms_request.c
 )
 

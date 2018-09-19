@@ -15,7 +15,6 @@
  */
 
 #include "src/kms_message.h"
-#include "test_kms.h"
 
 #include <assert.h>
 #include <stdio.h>

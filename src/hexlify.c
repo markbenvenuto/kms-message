@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-#include "test_kms.h"
-
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-
 char *
-hexlify (uint8_t *buf, size_t len)
+hexlify (const uint8_t *buf, size_t len)
 {
    char *hex_chars = malloc (len * 2 + 1);
    char *p = hex_chars;
    size_t i;
 
    for (i = 0; i < len; i++) {
-      p += sprintf (p, "%02X", buf[i]);
+      p += sprintf (p, "%02x", buf[i]);
    }
 
    *p = '\0';
