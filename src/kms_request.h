@@ -32,6 +32,14 @@ kms_request_destroy (kms_request_t *request);
 const char *
 kms_request_get_error (kms_request_t *request);
 bool
+kms_request_set_region (kms_request_t *request, const char *region);
+bool
+kms_request_set_service (kms_request_t *request, const char *service);
+bool
+kms_request_set_access_key_id (kms_request_t *request, const char *akid);
+bool
+kms_request_set_secret_key (kms_request_t *request, const char *key);
+bool
 kms_request_add_header_field_from_chars (kms_request_t *request,
                                          const char *field_name,
                                          const char *value);
@@ -45,5 +53,7 @@ kms_request_str_t *
 kms_request_get_canonical (kms_request_t *request);
 kms_request_str_t *
 kms_request_get_string_to_sign (kms_request_t *request);
+kms_request_str_t *
+kms_request_get_signature (kms_request_t *request);
 
 #endif /* KMS_REQUEST_H */

@@ -170,6 +170,15 @@ kms_request_str_dup (kms_request_str_t *str)
    return dup;
 }
 
+void
+kms_request_str_set_chars (kms_request_str_t *str, const char *chars)
+{
+   size_t len = strlen (chars);
+   kms_request_str_reserve (str, len); /* adds 1 for nil */
+   memcpy (str->str, chars, len + 1);
+   str->len = len;
+}
+
 char *
 kms_request_str_detach (kms_request_str_t *str, size_t *len)
 {

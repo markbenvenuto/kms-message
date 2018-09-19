@@ -133,8 +133,14 @@ read_req (const char *test_name)
    assert (uri_path);
    assert (0 == strcmp (strtok (NULL, " "), "HTTP/1.1\n"));
 
-   /* all test files use the same host */
    request = kms_request_new (method, uri_path);
+   /* from docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html */
+   kms_request_set_region (request, "us-east-1");
+   kms_request_set_service (request, "service");
+   kms_request_set_access_key_id (request, "AKIDEXAMPLE");
+   kms_request_set_secret_key (request,
+                               "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
+
    while (getline (&line, &len, f) != -1) {
       if (strchr (line, ':')) {
          /* new header field like Host:example.com */

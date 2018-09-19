@@ -32,6 +32,10 @@
 struct _kms_request_t {
    char error[512];
    bool failed;
+   kms_request_str_t *region;
+   kms_request_str_t *service;
+   kms_request_str_t *access_key_id;
+   kms_request_str_t *secret_key;
    kms_request_str_t *method;
    kms_request_str_t *path;
    kms_request_str_t *query;
@@ -76,6 +80,11 @@ kms_request_new (const char *method, const char *path_and_query)
    const char *question_mark;
    kms_request_t *request = calloc (sizeof (kms_request_t), 1);
 
+   request->region = kms_request_str_new ();
+   request->service = kms_request_str_new ();
+   request->access_key_id = kms_request_str_new ();
+   request->secret_key = kms_request_str_new ();
+
    question_mark = strchr (path_and_query, '?');
    if (question_mark) {
       request->path = kms_request_str_new_from_chars (
@@ -99,6 +108,10 @@ kms_request_new (const char *method, const char *path_and_query)
 void
 kms_request_destroy (kms_request_t *request)
 {
+   kms_request_str_destroy (request->region);
+   kms_request_str_destroy (request->service);
+   kms_request_str_destroy (request->access_key_id);
+   kms_request_str_destroy (request->secret_key);
    kms_request_str_destroy (request->method);
    kms_request_str_destroy (request->path);
    kms_request_str_destroy (request->query);
@@ -112,6 +125,34 @@ const char *
 kms_request_get_error (kms_request_t *request)
 {
    return request->failed ? request->error : NULL;
+}
+
+bool
+kms_request_set_region (kms_request_t *request, const char *region)
+{
+   kms_request_str_set_chars (request->region, region);
+   return true;
+}
+
+bool
+kms_request_set_service (kms_request_t *request, const char *service)
+{
+   kms_request_str_set_chars (request->service, service);
+   return true;
+}
+
+bool
+kms_request_set_access_key_id (kms_request_t *request, const char *akid)
+{
+   kms_request_str_set_chars (request->access_key_id, akid);
+   return true;
+}
+
+bool
+kms_request_set_secret_key (kms_request_t *request, const char *key)
+{
+   kms_request_str_set_chars (request->secret_key, key);
+   return true;
 }
 
 bool
@@ -273,7 +314,8 @@ kms_request_get_string_to_sign (kms_request_t *request)
    kms_request_str_append (sts, amz_date_header->value);
    kms_request_str_append_newline (sts);
 
-   /* like "20150830T123600Z" */
+   /* credential scope, like "20150830/us-east-1/service/aws4_request" */
+   /* get date from X-Amz-Date header like "20150830T123600Z", split on "T" */
    if ((t = strchr (amz_date_header->value->str, 'T'))) {
       kms_request_str_append_chars (
          sts, amz_date_header->value->str, t - amz_date_header->value->str);
@@ -281,8 +323,11 @@ kms_request_get_string_to_sign (kms_request_t *request)
       kms_request_str_append (sts, amz_date_header->value);
    }
 
-   /* TODO: configurable on kms_request_t */
-   kms_request_str_append_chars (sts, "/us-east-1/service/aws4_request\n", -1);
+   kms_request_str_append_char (sts, '/');
+   kms_request_str_append (sts, request->region);
+   kms_request_str_append_char (sts, '/');
+   kms_request_str_append (sts, request->service);
+   kms_request_str_append_chars (sts, "/aws4_request\n", -1);
 
    creq = kms_request_get_canonical (request);
    if (!kms_request_str_append_hashed (sts, creq)) {

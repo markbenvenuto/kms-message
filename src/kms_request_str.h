@@ -36,6 +36,8 @@ void
 kms_request_str_destroy (kms_request_str_t *str);
 kms_request_str_t *
 kms_request_str_dup (kms_request_str_t *str);
+void
+kms_request_str_set_chars (kms_request_str_t *str, const char *chars);
 char *
 kms_request_str_detach (kms_request_str_t *str, size_t *len);
 kms_request_str_t *
