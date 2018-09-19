@@ -24,9 +24,9 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-static const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
+const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
 
-static const char *skipped_aws_tests[] = {
+const char *skipped_aws_tests[] = {
    /* assume no duplicate headers */
    "get-header-key-duplicate",
    "get-header-value-order",
@@ -34,7 +34,7 @@ static const char *skipped_aws_tests[] = {
    "post-sts-token",
 };
 
-static bool
+bool
 skip_aws_test (const char *test_name)
 {
    size_t i;
@@ -48,7 +48,7 @@ skip_aws_test (const char *test_name)
    return false;
 }
 
-static char *
+char *
 aws_test_path (const char *test_name, const char *suffix)
 {
    size_t file_path_len;
@@ -103,7 +103,7 @@ read_aws_test (const char *test_name, const char *suffix)
    return buf;
 }
 
-static kms_request_t *
+kms_request_t *
 read_req (const char *test_name)
 {
    kms_request_t *request;
