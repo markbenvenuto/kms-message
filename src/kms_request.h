@@ -17,6 +17,8 @@
 #ifndef KMS_REQUEST_H
 #define KMS_REQUEST_H
 
+#include "kms_request_str.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -39,7 +41,9 @@ kms_request_append_header_field_value_from_chars (kms_request_t *request,
 bool
 kms_request_append_payload_from_chars (kms_request_t *request,
                                        const uint8_t *payload);
-uint8_t *
+kms_request_str_t *
 kms_request_get_canonical (kms_request_t *request);
+kms_request_str_t *
+kms_request_get_string_to_sign (kms_request_t *request);
 
 #endif /* KMS_REQUEST_H */

@@ -47,7 +47,7 @@ kms_request_str_append_char (kms_request_str_t *str, const uint8_t c);
 void
 kms_request_str_append_chars (kms_request_str_t *str,
                               const uint8_t *appended,
-                              size_t len);
+                              ssize_t len);
 void
 kms_request_str_append_newline (kms_request_str_t *str);
 void
@@ -62,5 +62,8 @@ kms_request_str_append_escaped (kms_request_str_t *str,
 void
 kms_request_str_append_stripped (kms_request_str_t *str,
                                  kms_request_str_t *appended);
+bool
+kms_request_str_append_hashed (kms_request_str_t *str,
+                               kms_request_str_t *appended);
 
 #endif // KMS_MESSAGE_KMS_REQUEST_STR_H

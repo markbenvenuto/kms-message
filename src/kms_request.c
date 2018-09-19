@@ -16,10 +16,9 @@
  */
 
 #include "kms_crypto.h"
+#include "kms_kv_list.h"
 #include "kms_message.h"
 #include "kms_private.h"
-#include "kms_request_str.h"
-#include "kms_kv_list.h"
 
 #include <assert.h>
 
@@ -222,26 +221,7 @@ append_signed_headers (kms_kv_list_t *lst, kms_request_str_t *str)
    }
 }
 
-static bool
-append_hashed_payload (kms_request_t *request, kms_request_str_t *str)
-{
-   uint8_t signature[32];
-   char *hex_chars;
-
-   if (!kms_sha256 (request->payload->str, request->payload->len, signature)) {
-      /* TODO: set error */
-      return false;
-   }
-
-   hex_chars = hexlify (signature, sizeof (signature));
-   kms_request_str_append_chars (
-      str, (uint8_t *) hex_chars, 2 * sizeof (signature));
-   free (hex_chars);
-
-   return true;
-}
-
-uint8_t *
+kms_request_str_t *
 kms_request_get_canonical (kms_request_t *request)
 {
    kms_request_str_t *canonical;
@@ -267,9 +247,59 @@ kms_request_get_canonical (kms_request_t *request)
    kms_request_str_append_newline (canonical);
    append_signed_headers (lst, canonical);
    kms_request_str_append_newline (canonical);
-   append_hashed_payload (request, canonical);
+   kms_request_str_append_hashed (canonical, request->payload);
 
    kms_kv_list_destroy (lst);
 
-   return kms_request_str_detach (canonical, NULL);
+   return canonical;
+}
+
+kms_request_str_t *
+kms_request_get_string_to_sign (kms_request_t *request)
+{
+   kms_request_str_t *sts;
+   kms_request_str_t *creq = NULL; /* canonical request */
+   const kms_kv_t *amz_date_header;
+   char *t;
+
+   if (request->failed) {
+      return NULL;
+   }
+
+   sts = kms_request_str_new ();
+   kms_request_str_append_chars (sts, (uint8_t *) "AWS4-HMAC-SHA256\n", -1);
+   amz_date_header =
+      kms_kv_list_find (request->header_fields, (uint8_t *) "X-Amz-Date");
+   if (!amz_date_header) {
+      goto error;
+   }
+
+   kms_request_str_append (sts, amz_date_header->value);
+   kms_request_str_append_newline (sts);
+
+   /* like "20150830T123600Z" */
+   if ((t = strchr ((char *) amz_date_header->value->str, 'T'))) {
+      kms_request_str_append_chars (sts,
+                                    amz_date_header->value->str,
+                                    t - (char *) amz_date_header->value->str);
+   } else {
+      kms_request_str_append (sts, amz_date_header->value);
+   }
+
+   /* TODO: configurable on kms_request_t */
+   kms_request_str_append_chars (
+      sts, (uint8_t *) "/us-east-1/service/aws4_request\n", -1);
+
+   creq = kms_request_get_canonical (request);
+   if (!kms_request_str_append_hashed (sts, creq)) {
+      goto error;
+   }
+
+   kms_request_str_destroy (creq);
+   return sts;
+
+error:
+   kms_request_str_destroy (creq);
+   kms_request_str_destroy (sts);
+   return NULL;
 }

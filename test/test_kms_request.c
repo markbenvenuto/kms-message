@@ -15,6 +15,7 @@
  */
 
 #include "src/kms_message.h"
+#include "src/kms_request_str.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -165,37 +166,53 @@ read_req (const char *test_name)
    return request;
 }
 
+/* canonical request */
+void
+aws_sig_v4_test_compare (kms_request_t *request,
+                         kms_request_str_t *(*func) (kms_request_t *),
+                         const char *test_name,
+                         const char *suffix)
+{
+   uint8_t *expect;
+   size_t expect_len;
+   kms_request_str_t *actual;
+
+   /* canonical request */
+   expect = read_aws_test (test_name, suffix);
+   expect_len = strlen ((char *) expect);
+   actual = func (request);
+
+   if (expect_len != actual->len ||
+       0 != memcmp (expect, actual->str, actual->len)) {
+      fprintf (stderr,
+               "%s.%s failed\n"
+               "--- Expect (%zu chars) ---\n%s\n"
+               "--- Actual (%zu chars) ---\n%s\n",
+               test_name,
+               suffix,
+               expect_len,
+               expect,
+               actual->len,
+               actual->str);
+      abort ();
+   }
+
+   kms_request_str_destroy (actual);
+   free (expect);
+}
+
 void
 aws_sig_v4_test (const char *test_name)
 {
    kms_request_t *request;
-   uint8_t *creq_expect;
-   size_t creq_expect_len;
-   uint8_t *creq_actual;
-   size_t creq_actual_len;
 
    request = read_req (test_name);
    /* canonical request */
-   creq_expect = read_aws_test (test_name, "creq");
-   creq_expect_len = strlen ((char *) creq_expect);
-   creq_actual = kms_request_get_canonical (request);
-   creq_actual_len = strlen ((char *) creq_actual);
-
-   if (creq_expect_len != creq_actual_len ||
-       0 != memcmp (creq_expect, creq_actual, strlen ((char *) creq_actual))) {
-      fprintf (stderr,
-               "Failed.\n"
-               "--- Expect (%zu chars) ---\n%s\n"
-               "--- Actual (%zu chars) ---\n%s\n",
-               creq_expect_len,
-               creq_expect,
-               creq_actual_len,
-               creq_actual);
-      abort ();
-   }
-
-   free (creq_actual);
-   free (creq_expect);
+   aws_sig_v4_test_compare (
+      request, kms_request_get_canonical, test_name, "creq");
+   /* string to sign */
+   aws_sig_v4_test_compare (
+      request, kms_request_get_string_to_sign, test_name, "sts");
    kms_request_destroy (request);
 }
 

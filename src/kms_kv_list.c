@@ -18,6 +18,7 @@
 #include "kms_kv_list.h"
 #include "kms_message.h"
 #include "kms_private.h"
+#include "kms_request_str.h"
 
 static void
 kv_init (kms_kv_t *kv, kms_request_str_t *key, kms_request_str_t *value)
@@ -70,6 +71,21 @@ kms_kv_list_add (kms_kv_list_t *lst,
 
    kv_init (&lst->kvs[lst->len], key, value);
    ++lst->len;
+}
+
+const kms_kv_t *
+kms_kv_list_find (const kms_kv_list_t *lst, const uint8_t *key)
+{
+   size_t i;
+
+   for (i = 0; i < lst->len; i++) {
+      if (0 ==
+          strcmp ((const char *) lst->kvs[i].key->str, (const char *) key)) {
+         return &lst->kvs[i];
+      }
+   }
+
+   return NULL;
 }
 
 static int

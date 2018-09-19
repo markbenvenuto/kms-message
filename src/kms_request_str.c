@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include "kms_request_str.h"
+#include "kms_crypto.h"
 #include "kms_private.h"
+#include "kms_request_str.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -223,10 +224,13 @@ kms_request_str_append_char (kms_request_str_t *str, const uint8_t c)
 void
 kms_request_str_append_chars (kms_request_str_t *str,
                               const uint8_t *appended,
-                              size_t len)
+                              ssize_t len)
 {
-   kms_request_str_reserve (str, len);
-   memcpy (str->str + str->len, appended, len);
+   if (len < 0) {
+      len = strlen ((char *) appended);
+   }
+   kms_request_str_reserve (str, (size_t) len);
+   memcpy (str->str + str->len, appended, (size_t) len);
    str->len += len;
    str->str[str->len] = '\0';
 }
@@ -322,4 +326,22 @@ kms_request_str_append_stripped (kms_request_str_t *str,
 
       ++src;
    }
+}
+
+bool
+kms_request_str_append_hashed (kms_request_str_t *str,
+                               kms_request_str_t *appended)
+{
+   uint8_t hash[32];
+   char *hex_chars;
+
+   if (!kms_sha256 (appended->str, appended->len, hash)) {
+      return false;
+   }
+
+   hex_chars = hexlify (hash, sizeof (hash));
+   kms_request_str_append_chars (str, (uint8_t *) hex_chars, 2 * sizeof (hash));
+   free (hex_chars);
+
+   return true;
 }
