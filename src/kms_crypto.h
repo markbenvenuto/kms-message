@@ -21,6 +21,6 @@
 #include <stdlib.h>
 
 bool
-kms_sha256 (const uint8_t *input, size_t len, uint8_t *hash_out);
+kms_sha256 (const char *input, size_t len, unsigned char *hash_out);
 
 #endif /* KMS_MESSAGE_KMS_CRYPTO_H */

@@ -26,21 +26,21 @@
 typedef struct _kms_request_t kms_request_t;
 
 kms_request_t *
-kms_request_new (const uint8_t *method, const uint8_t *path_and_query);
+kms_request_new (const char *method, const char *path_and_query);
 void
 kms_request_destroy (kms_request_t *request);
-const uint8_t *
+const char *
 kms_request_get_error (kms_request_t *request);
 bool
 kms_request_add_header_field_from_chars (kms_request_t *request,
-                                         const uint8_t *field_name,
-                                         const uint8_t *value);
+                                         const char *field_name,
+                                         const char *value);
 bool
 kms_request_append_header_field_value_from_chars (kms_request_t *request,
-                                                  const uint8_t *value);
+                                                  const char *value);
 bool
 kms_request_append_payload_from_chars (kms_request_t *request,
-                                       const uint8_t *payload);
+                                       const char *payload);
 kms_request_str_t *
 kms_request_get_canonical (kms_request_t *request);
 kms_request_str_t *

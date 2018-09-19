@@ -18,8 +18,8 @@
 #define KMS_PRIVATE_H
 
 char *
-hexlify (uint8_t *buf, size_t len);
-uint8_t *
+hexlify (unsigned char *buf, size_t len);
+char *
 unhexlify (const char *hex_chars, size_t *len);
 
 #endif /* KMS_PRIVATE_H */

@@ -69,14 +69,14 @@ aws_test_path (const char *test_name, const char *suffix)
    return file_path;
 }
 
-uint8_t *
+char *
 read_aws_test (const char *test_name, const char *suffix)
 {
    char *file_path;
    FILE *f;
    struct stat file_stat;
    size_t f_size;
-   uint8_t *buf;
+   char *buf;
 
    file_path = aws_test_path (test_name, suffix);
    if (0 != stat (file_path, &file_stat)) {
@@ -134,7 +134,7 @@ read_req (const char *test_name)
    assert (0 == strcmp (strtok (NULL, " "), "HTTP/1.1\n"));
 
    /* all test files use the same host */
-   request = kms_request_new ((uint8_t *) method, (uint8_t *) uri_path);
+   request = kms_request_new (method, uri_path);
    while (getline (&line, &len, f) != -1) {
       if (strchr (line, ':')) {
          /* new header field like Host:example.com */
@@ -143,7 +143,7 @@ read_req (const char *test_name)
          field_value = strtok (NULL, "\n");
          assert (field_value);
          r = kms_request_add_header_field_from_chars (
-            request, (uint8_t *) field_name, (uint8_t *) field_value);
+            request, field_name, field_value);
          assert (r);
       } else if (0 == strcmp (line, "\n")) {
          /* end of header */
@@ -151,13 +151,12 @@ read_req (const char *test_name)
       } else {
          /* continuing a multiline header from previous line */
          /* TODO: is this a test quirk or HTTP specified behavior? */
-         kms_request_append_header_field_value_from_chars (request,
-                                                           (uint8_t *) line);
+         kms_request_append_header_field_value_from_chars (request, line);
       }
    }
 
    while (getline (&line, &len, f) != -1) {
-      kms_request_append_payload_from_chars (request, (uint8_t *) line);
+      kms_request_append_payload_from_chars (request, line);
    }
 
    fclose (f);
@@ -173,13 +172,13 @@ aws_sig_v4_test_compare (kms_request_t *request,
                          const char *test_name,
                          const char *suffix)
 {
-   uint8_t *expect;
+   char *expect;
    size_t expect_len;
    kms_request_str_t *actual;
 
    /* canonical request */
    expect = read_aws_test (test_name, suffix);
-   expect_len = strlen ((char *) expect);
+   expect_len = strlen (expect);
    actual = func (request);
 
    if (expect_len != actual->len ||

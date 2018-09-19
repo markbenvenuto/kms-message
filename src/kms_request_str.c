@@ -44,11 +44,11 @@ tables_init ()
    kms_initialized = true;
 }
 
-static uint8_t *
-kms_strdupv_printf (const uint8_t *format, va_list args)
+static char *
+kms_strdupv_printf (const char *format, va_list args)
 {
    va_list my_args;
-   uint8_t *buf;
+   char *buf;
    ssize_t len = 32;
    ssize_t n;
 
@@ -75,11 +75,11 @@ kms_strdupv_printf (const uint8_t *format, va_list args)
    }
 }
 
-uint8_t *
-kms_strdup_printf (const uint8_t *format, ...)
+char *
+kms_strdup_printf (const char *format, ...)
 {
    va_list args;
-   uint8_t *ret;
+   char *ret;
 
    assert (format);
 
@@ -131,7 +131,7 @@ kms_request_str_new (void)
 }
 
 kms_request_str_t *
-kms_request_str_new_from_chars (const uint8_t *chars, ssize_t len)
+kms_request_str_new_from_chars (const char *chars, ssize_t len)
 {
    kms_request_str_t *s = malloc (sizeof (kms_request_str_t));
    size_t actual_len;
@@ -139,7 +139,7 @@ kms_request_str_new_from_chars (const uint8_t *chars, ssize_t len)
    if (len >= 0) {
       actual_len = (size_t) len;
    } else {
-      actual_len = strlen ((const char *) chars);
+      actual_len = strlen (chars);
    }
 
    s->size = actual_len + 1;
@@ -163,17 +163,17 @@ kms_request_str_dup (kms_request_str_t *str)
 {
    kms_request_str_t *dup = malloc (sizeof (kms_request_str_t));
 
-   dup->str = (uint8_t *) strndup ((const char *) str->str, str->len);
+   dup->str = strndup (str->str, str->len);
    dup->len = str->len;
    dup->size = str->len + 1;
 
    return dup;
 }
 
-uint8_t *
+char *
 kms_request_str_detach (kms_request_str_t *str, size_t *len)
 {
-   uint8_t *s = str->str;
+   char *s = str->str;
 
    if (len) {
       *len = str->len;
@@ -188,12 +188,12 @@ kms_request_str_t *
 kms_request_str_tolower (kms_request_str_t *str)
 {
    kms_request_str_t *dup = kms_request_str_dup (str);
-   uint8_t *p = dup->str;
+   char *p = dup->str;
 
    for (; *p; ++p) {
       /* ignore UTF-8 non-ASCII chars, which have 1 in the top bit */
-      if ((*p & (0x1U << 7U)) == 0) {
-         *p = (uint8_t) tolower (*p);
+      if ((*(uint8_t *) p & (0x1U << 7U)) == 0) {
+         *p = (char) tolower (*p);
       }
    }
 
@@ -212,7 +212,7 @@ kms_request_str_append (kms_request_str_t *str, kms_request_str_t *appended)
 }
 
 void
-kms_request_str_append_char (kms_request_str_t *str, const uint8_t c)
+kms_request_str_append_char (kms_request_str_t *str, char c)
 {
    kms_request_str_reserve (str, 1);
    *(str->str + str->len) = c;
@@ -223,11 +223,11 @@ kms_request_str_append_char (kms_request_str_t *str, const uint8_t c)
 
 void
 kms_request_str_append_chars (kms_request_str_t *str,
-                              const uint8_t *appended,
+                              const char *appended,
                               ssize_t len)
 {
    if (len < 0) {
-      len = strlen ((char *) appended);
+      len = strlen (appended);
    }
    kms_request_str_reserve (str, (size_t) len);
    memcpy (str->str + str->len, appended, (size_t) len);
@@ -238,7 +238,7 @@ kms_request_str_append_chars (kms_request_str_t *str,
 void
 kms_request_str_append_newline (kms_request_str_t *str)
 {
-   kms_request_str_append_char (str, (uint8_t) '\n');
+   kms_request_str_append_char (str, '\n');
 }
 
 void
@@ -246,7 +246,7 @@ kms_request_str_append_lowercase (kms_request_str_t *str,
                                   kms_request_str_t *appended)
 {
    size_t i;
-   uint8_t *p;
+   char *p;
 
    i = str->len;
    kms_request_str_append (str, appended);
@@ -256,7 +256,7 @@ kms_request_str_append_lowercase (kms_request_str_t *str,
       p = &str->str[i];
       /* ignore UTF-8 non-ASCII chars, which have 1 in the top bit */
       if ((*p & (0x1U << 7U)) == 0) {
-         *p = (uint8_t) tolower (*p);
+         *p = (char) tolower (*p);
       }
    }
 }
@@ -279,8 +279,8 @@ kms_request_str_append_escaped (kms_request_str_t *str,
 
    /* might replace each input char with 3 output chars: "%AB" */
    kms_request_str_reserve (str, 3 * appended->len);
-   in = appended->str;
-   out = str->str + str->len;
+   in = (uint8_t *) appended->str;
+   out = (uint8_t *) str->str + str->len;
 
    for (i = 0; i < appended->len; ++i) {
       if (rfc_3986_tab[*in] || (*in == '/' && !escape_slash)) {
@@ -301,8 +301,8 @@ void
 kms_request_str_append_stripped (kms_request_str_t *str,
                                  kms_request_str_t *appended)
 {
-   const uint8_t *src = appended->str;
-   const uint8_t *end = appended->str + appended->len;
+   const char *src = appended->str;
+   const char *end = appended->str + appended->len;
    bool space = false;
 
    kms_request_str_reserve (str, appended->len);
@@ -340,7 +340,7 @@ kms_request_str_append_hashed (kms_request_str_t *str,
    }
 
    hex_chars = hexlify (hash, sizeof (hash));
-   kms_request_str_append_chars (str, (uint8_t *) hex_chars, 2 * sizeof (hash));
+   kms_request_str_append_chars (str, hex_chars, 2 * sizeof (hash));
    free (hex_chars);
 
    return true;

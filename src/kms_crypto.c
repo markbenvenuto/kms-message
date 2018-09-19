@@ -37,7 +37,7 @@ EVP_MD_CTX_free (EVP_MD_CTX *ctx)
 #endif
 
 bool
-kms_sha256 (const uint8_t *input, size_t len, uint8_t *hash_out)
+kms_sha256 (const char *input, size_t len, unsigned char *hash_out)
 {
    EVP_MD_CTX *digest_ctxp = EVP_MD_CTX_new ();
    bool rval = false;

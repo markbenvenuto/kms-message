@@ -44,7 +44,7 @@ kms_kv_list_add (kms_kv_list_t *lst,
                  kms_request_str_t *key,
                  kms_request_str_t *value);
 const kms_kv_t *
-kms_kv_list_find (const kms_kv_list_t *lst, const uint8_t *key);
+kms_kv_list_find (const kms_kv_list_t *lst, const char *key);
 kms_kv_list_t *
 kms_kv_list_sorted (kms_kv_list_t *lst);
 

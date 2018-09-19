@@ -30,7 +30,7 @@
    } while (0)
 
 struct _kms_request_t {
-   uint8_t error[512];
+   char error[512];
    bool failed;
    kms_request_str_t *method;
    kms_request_str_t *path;
@@ -45,15 +45,15 @@ static kms_kv_list_t *
 parse_query_params (kms_request_str_t *q)
 {
    kms_kv_list_t *lst = kms_kv_list_new ();
-   uint8_t *p = q->str;
-   uint8_t *end = q->str + q->len;
-   uint8_t *amp, *equals;
+   char *p = q->str;
+   char *end = q->str + q->len;
+   char *amp, *equals;
    kms_request_str_t *k, *v;
 
    do {
-      equals = (uint8_t *) strchr ((const char *) p, '=');
+      equals = strchr ((const char *) p, '=');
       assert (equals);
-      amp = (uint8_t *) strchr ((const char *) equals, '&');
+      amp = strchr ((const char *) equals, '&');
       if (!amp) {
          amp = end;
       }
@@ -71,12 +71,12 @@ parse_query_params (kms_request_str_t *q)
 }
 
 kms_request_t *
-kms_request_new (const uint8_t *method, const uint8_t *path_and_query)
+kms_request_new (const char *method, const char *path_and_query)
 {
-   const uint8_t *question_mark;
+   const char *question_mark;
    kms_request_t *request = calloc (sizeof (kms_request_t), 1);
 
-   question_mark = (uint8_t *) strchr ((const char *) path_and_query, '?');
+   question_mark = strchr (path_and_query, '?');
    if (question_mark) {
       request->path = kms_request_str_new_from_chars (
          path_and_query, question_mark - path_and_query);
@@ -108,7 +108,7 @@ kms_request_destroy (kms_request_t *request)
    free (request);
 }
 
-const uint8_t *
+const char *
 kms_request_get_error (kms_request_t *request)
 {
    return request->failed ? request->error : NULL;
@@ -116,8 +116,8 @@ kms_request_get_error (kms_request_t *request)
 
 bool
 kms_request_add_header_field_from_chars (kms_request_t *request,
-                                         const uint8_t *field_name,
-                                         const uint8_t *value)
+                                         const char *field_name,
+                                         const char *value)
 {
    kms_request_str_t *k, *v;
 
@@ -134,7 +134,7 @@ kms_request_add_header_field_from_chars (kms_request_t *request,
 
 bool
 kms_request_append_header_field_value_from_chars (kms_request_t *request,
-                                                  const uint8_t *value)
+                                                  const char *value)
 {
    kms_request_str_t *v;
    kms_request_str_t *s;
@@ -157,12 +157,11 @@ kms_request_append_header_field_value_from_chars (kms_request_t *request,
 
 bool
 kms_request_append_payload_from_chars (kms_request_t *request,
-                                       const uint8_t *payload)
+                                       const char *payload)
 {
    CHECK_FAILED;
 
-   kms_request_str_append_chars (
-      request->payload, payload, strlen ((char *) payload));
+   kms_request_str_append_chars (request->payload, payload, strlen (payload));
 
    return true;
 }
@@ -181,15 +180,13 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
 
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append_escaped (str, lst->kvs[i].key, true);
-      kms_request_str_append_char (str, (uint8_t) '=');
+      kms_request_str_append_char (str, '=');
       kms_request_str_append_escaped (str, lst->kvs[i].value, true);
 
       if (i < lst->len - 1) {
-         kms_request_str_append_char (str, (uint8_t) '&');
+         kms_request_str_append_char (str, '&');
       }
    }
-
-   kms_kv_list_destroy (lst);
 }
 
 static void
@@ -202,7 +199,7 @@ append_canonical_headers (kms_kv_list_t *lst, kms_request_str_t *str)
     * sequential spaces in the header value to a single space." */
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append_lowercase (str, lst->kvs[i].key);
-      kms_request_str_append_char (str, (uint8_t) ':');
+      kms_request_str_append_char (str, ':');
       kms_request_str_append_stripped (str, lst->kvs[i].value);
       kms_request_str_append_newline (str);
    }
@@ -216,7 +213,7 @@ append_signed_headers (kms_kv_list_t *lst, kms_request_str_t *str)
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append_lowercase (str, lst->kvs[i].key);
       if (i < lst->len - 1) {
-         kms_request_str_append_char (str, (uint8_t) ';');
+         kms_request_str_append_char (str, ';');
       }
    }
 }
@@ -267,9 +264,8 @@ kms_request_get_string_to_sign (kms_request_t *request)
    }
 
    sts = kms_request_str_new ();
-   kms_request_str_append_chars (sts, (uint8_t *) "AWS4-HMAC-SHA256\n", -1);
-   amz_date_header =
-      kms_kv_list_find (request->header_fields, (uint8_t *) "X-Amz-Date");
+   kms_request_str_append_chars (sts, "AWS4-HMAC-SHA256\n", -1);
+   amz_date_header = kms_kv_list_find (request->header_fields, "X-Amz-Date");
    if (!amz_date_header) {
       goto error;
    }
@@ -278,17 +274,15 @@ kms_request_get_string_to_sign (kms_request_t *request)
    kms_request_str_append_newline (sts);
 
    /* like "20150830T123600Z" */
-   if ((t = strchr ((char *) amz_date_header->value->str, 'T'))) {
-      kms_request_str_append_chars (sts,
-                                    amz_date_header->value->str,
-                                    t - (char *) amz_date_header->value->str);
+   if ((t = strchr (amz_date_header->value->str, 'T'))) {
+      kms_request_str_append_chars (
+         sts, amz_date_header->value->str, t - amz_date_header->value->str);
    } else {
       kms_request_str_append (sts, amz_date_header->value);
    }
 
    /* TODO: configurable on kms_request_t */
-   kms_request_str_append_chars (
-      sts, (uint8_t *) "/us-east-1/service/aws4_request\n", -1);
+   kms_request_str_append_chars (sts, "/us-east-1/service/aws4_request\n", -1);
 
    creq = kms_request_get_canonical (request);
    if (!kms_request_str_append_hashed (sts, creq)) {

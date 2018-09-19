@@ -74,7 +74,7 @@ kms_kv_list_add (kms_kv_list_t *lst,
 }
 
 const kms_kv_t *
-kms_kv_list_find (const kms_kv_list_t *lst, const uint8_t *key)
+kms_kv_list_find (const kms_kv_list_t *lst, const char *key)
 {
    size_t i;
 
@@ -94,15 +94,13 @@ sort_kvs_cmp (const void *a, const void *b)
    kms_kv_t *kv_a = (kms_kv_t *) a;
    kms_kv_t *kv_b = (kms_kv_t *) b;
 
-   int r =
-      strcmp ((const char *) kv_a->key->str, (const char *) kv_b->key->str);
+   int r = strcmp (kv_a->key->str, kv_b->key->str);
 
    if (r != 0) {
       return r;
    }
 
-   return strcmp ((const char *) kv_a->value->str,
-                  (const char *) kv_b->value->str);
+   return strcmp (kv_a->value->str, kv_b->value->str);
 }
 
 kms_kv_list_t *

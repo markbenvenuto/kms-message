@@ -23,7 +23,7 @@
 #include <string.h>
 
 typedef struct {
-   uint8_t *str;
+   char *str;
    size_t len;
    size_t size;
 } kms_request_str_t;
@@ -31,22 +31,22 @@ typedef struct {
 kms_request_str_t *
 kms_request_str_new (void);
 kms_request_str_t *
-kms_request_str_new_from_chars (const uint8_t *chars, ssize_t len);
+kms_request_str_new_from_chars (const char *chars, ssize_t len);
 void
 kms_request_str_destroy (kms_request_str_t *str);
 kms_request_str_t *
 kms_request_str_dup (kms_request_str_t *str);
-uint8_t *
+char *
 kms_request_str_detach (kms_request_str_t *str, size_t *len);
 kms_request_str_t *
 kms_request_str_tolower (kms_request_str_t *str);
 void
 kms_request_str_append (kms_request_str_t *str, kms_request_str_t *appended);
 void
-kms_request_str_append_char (kms_request_str_t *str, const uint8_t c);
+kms_request_str_append_char (kms_request_str_t *str, char c);
 void
 kms_request_str_append_chars (kms_request_str_t *str,
-                              const uint8_t *appended,
+                              const char *appended,
                               ssize_t len);
 void
 kms_request_str_append_newline (kms_request_str_t *str);
