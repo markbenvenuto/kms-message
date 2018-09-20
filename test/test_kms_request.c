@@ -70,14 +70,14 @@ aws_test_path (const char *test_name, const char *suffix)
    return file_path;
 }
 
-char *
+kms_request_str_t *
 read_aws_test (const char *test_name, const char *suffix)
 {
    char *file_path;
    FILE *f;
    struct stat file_stat;
    size_t f_size;
-   char *buf;
+   kms_request_str_t *str;
 
    file_path = aws_test_path (test_name, suffix);
    if (0 != stat (file_path, &file_stat)) {
@@ -92,8 +92,9 @@ read_aws_test (const char *test_name, const char *suffix)
    }
 
    f_size = (size_t) file_stat.st_size;
-   buf = malloc (f_size + 1);
-   if (f_size != fread (buf, 1, f_size, f)) {
+   str = kms_request_str_new ();
+   kms_request_str_reserve (str, f_size);
+   if (f_size != fread (str->str, 1, f_size, f)) {
       perror (file_path);
       abort ();
    }
@@ -101,8 +102,10 @@ read_aws_test (const char *test_name, const char *suffix)
    fclose (f);
    free (file_path);
 
-   buf[f_size] = '\0';
-   return buf;
+   str->len = f_size;
+   str->str[f_size] = '\0';
+
+   return str;
 }
 
 kms_request_t *
@@ -112,6 +115,7 @@ read_req (const char *test_name)
    char *file_path;
    FILE *f;
    size_t len;
+   ssize_t line_len;
    char *line = NULL;
    char *method;
    char *uri_path;
@@ -142,7 +146,7 @@ read_req (const char *test_name)
    kms_request_set_secret_key (request,
                                "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
 
-   while (getline (&line, &len, f) != -1) {
+   while ((line_len = getline (&line, &len, f)) != -1) {
       if (strchr (line, ':')) {
          /* new header field like Host:example.com */
          field_name = strtok (line, ": ");
@@ -155,15 +159,18 @@ read_req (const char *test_name)
       } else if (0 == strcmp (line, "\n")) {
          /* end of header */
          break;
-      } else {
+      } else if (line_len > 2) {
          /* continuing a multiline header from previous line */
          /* TODO: is this a test quirk or HTTP specified behavior? */
-         kms_request_append_header_field_value_from_chars (request, line);
+         kms_request_append_header_field_value_from_chars (request, "\n", 1);
+         /* omit this line's newline */
+         kms_request_append_header_field_value_from_chars (
+            request, line, (size_t) (line_len - 1));
       }
    }
 
-   while (getline (&line, &len, f) != -1) {
-      kms_request_append_payload_from_chars (request, line);
+   while ((line_len = getline (&line, &len, f)) != -1) {
+      kms_request_append_payload_from_chars (request, line, (size_t) line_len);
    }
 
    fclose (f);
@@ -172,6 +179,31 @@ read_req (const char *test_name)
    return request;
 }
 
+static ssize_t
+first_non_matching (kms_request_str_t *x, kms_request_str_t *y)
+{
+   size_t len = x->len > y->len ? x->len : y->len;
+   size_t i;
+
+   for (i = 0; i < len; i++) {
+      if (x->str[i] != y->str[i]) {
+         return i;
+      }
+   }
+
+   if (x->len > y->len) {
+      return y->len + 1;
+   }
+
+   if (y->len > x->len) {
+      return x->len + 1;
+   }
+
+   /* the strings match */
+   return -1;
+}
+
+
 /* canonical request */
 void
 aws_sig_v4_test_compare (kms_request_t *request,
@@ -179,25 +211,24 @@ aws_sig_v4_test_compare (kms_request_t *request,
                          const char *test_name,
                          const char *suffix)
 {
-   char *expect;
-   size_t expect_len;
+   kms_request_str_t *expect;
    kms_request_str_t *actual;
 
    /* canonical request */
    expect = read_aws_test (test_name, suffix);
-   expect_len = strlen (expect);
    actual = func (request);
 
-   if (expect_len != actual->len ||
-       0 != memcmp (expect, actual->str, actual->len)) {
+   if (expect->len != actual->len ||
+       0 != memcmp (expect->str, actual->str, actual->len)) {
       fprintf (stderr,
-               "%s.%s failed\n"
+               "%s.%s failed, mismatch starting at %zd\n"
                "--- Expect (%zu chars) ---\n%s\n"
                "--- Actual (%zu chars) ---\n%s\n",
                test_name,
                suffix,
-               expect_len,
-               expect,
+               first_non_matching (expect, actual),
+               expect->len,
+               expect->str,
                actual->len,
                actual->str);
       abort ();
@@ -219,6 +250,7 @@ aws_sig_v4_test (const char *test_name)
       request, kms_request_get_string_to_sign, test_name, "sts");
    aws_sig_v4_test_compare (
       request, kms_request_get_signature, test_name, "authz");
+   aws_sig_v4_test_compare (request, kms_request_get_signed, test_name, "sreq");
    kms_request_destroy (request);
 }
 

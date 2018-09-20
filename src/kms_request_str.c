@@ -77,27 +77,6 @@ kms_strdupv_printf (const char *format, va_list args)
    }
 }
 
-static void
-kms_request_str_reserve (kms_request_str_t *str, size_t size)
-{
-   size_t next_size = str->len + size + 1;
-
-   if (str->size < next_size) {
-      /* next power of 2 */
-      --next_size;
-      next_size |= next_size >> 1U;
-      next_size |= next_size >> 2U;
-      next_size |= next_size >> 4U;
-      next_size |= next_size >> 8U;
-      next_size |= next_size >> 16U;
-      ++next_size;
-
-      str->size = next_size;
-      str->str = realloc (str->str, next_size);
-      /* TODO: failure? */
-   }
-}
-
 kms_request_str_t *
 kms_request_str_new (void)
 {
@@ -141,6 +120,28 @@ kms_request_str_destroy (kms_request_str_t *str)
 
    free (str->str);
    free (str);
+}
+
+bool
+kms_request_str_reserve (kms_request_str_t *str, size_t size)
+{
+   size_t next_size = str->len + size + 1;
+
+   if (str->size < next_size) {
+      /* next power of 2 */
+      --next_size;
+      next_size |= next_size >> 1U;
+      next_size |= next_size >> 2U;
+      next_size |= next_size >> 4U;
+      next_size |= next_size >> 8U;
+      next_size |= next_size >> 16U;
+      ++next_size;
+
+      str->size = next_size;
+      str->str = realloc (str->str, next_size);
+   }
+
+   return str->str != NULL;
 }
 
 kms_request_str_t *
@@ -293,6 +294,7 @@ kms_request_str_append_stripped (kms_request_str_t *str,
    const char *src = appended->str;
    const char *end = appended->str + appended->len;
    bool space = false;
+   bool comma = false;
 
    kms_request_str_reserve (str, appended->len);
 
@@ -301,9 +303,20 @@ kms_request_str_append_stripped (kms_request_str_t *str,
    }
 
    while (src < end) {
-      if (isspace (*src)) {
+      /* replace newlines with commas. not documented but see
+       * get-header-value-multiline.creq */
+      if (*src == '\n') {
+         comma = true;
+         space = false;
+      } else if (isspace (*src)) {
          space = true;
       } else {
+         if (comma) {
+            kms_request_str_append_char (str, ',');
+            comma = false;
+            space = false;
+         }
+
          /* is there a run of spaces waiting to be written as one space? */
          if (space) {
             kms_request_str_append_char (str, ' ');

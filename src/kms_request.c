@@ -200,10 +200,10 @@ kms_request_add_header_field_from_chars (kms_request_t *request,
 
 bool
 kms_request_append_header_field_value_from_chars (kms_request_t *request,
-                                                  const char *value)
+                                                  const char *value,
+                                                  size_t len)
 {
    kms_request_str_t *v;
-   kms_request_str_t *s;
 
    CHECK_FAILED;
 
@@ -213,21 +213,19 @@ kms_request_append_header_field_value_from_chars (kms_request_t *request,
    }
 
    v = request->header_fields->kvs[request->header_fields->len - 1].value;
-   kms_request_str_append_char (v, ',');
-   s = kms_request_str_new_from_chars (value, -1);
-   kms_request_str_append_stripped (v, s);
-   kms_request_str_destroy (s);
+   kms_request_str_append_chars (v, value, len);
 
    return true;
 }
 
 bool
 kms_request_append_payload_from_chars (kms_request_t *request,
-                                       const char *payload)
+                                       const char *payload,
+                                       size_t len)
 {
    CHECK_FAILED;
 
-   kms_request_str_append_chars (request->payload, payload, strlen (payload));
+   kms_request_str_append_chars (request->payload, payload, len);
 
    return true;
 }
@@ -472,4 +470,68 @@ done:
    }
 
    return sig;
+}
+
+kms_request_str_t *
+kms_request_get_signed (kms_request_t *request)
+{
+   bool success = false;
+   kms_kv_list_t *lst = NULL;
+   kms_request_str_t *signature = NULL;
+   kms_request_str_t *sreq = NULL;
+   size_t i;
+
+   if (request->failed) {
+      return NULL;
+   }
+
+   sreq = kms_request_str_new ();
+   /* like "POST / HTTP/1.1" */
+   kms_request_str_append (sreq, request->method);
+   kms_request_str_append_char (sreq, ' ');
+   kms_request_str_append (sreq, request->path);
+   if (request->query->len) {
+      kms_request_str_append_char (sreq, '?');
+      kms_request_str_append (sreq, request->query);
+   }
+
+   kms_request_str_append_chars (sreq, " HTTP/1.1", -1);
+   kms_request_str_append_newline (sreq);
+
+   /* headers */
+   lst = request->header_fields;
+   for (i = 0; i < lst->len; i++) {
+      kms_request_str_append (sreq, lst->kvs[i].key);
+      kms_request_str_append_char (sreq, ':');
+      kms_request_str_append (sreq, lst->kvs[i].value);
+      kms_request_str_append_newline (sreq);
+   }
+
+   /* authorization header */
+   signature = kms_request_get_signature (request);
+   if (!signature) {
+      goto done;
+   }
+
+   /* note space after ':', to match test .sreq files */
+   kms_request_str_append_chars (sreq, "Authorization: ", -1);
+   kms_request_str_append (sreq, signature);
+
+   /* body */
+   if (request->payload->len) {
+      kms_request_str_append_newline (sreq);
+      kms_request_str_append_newline (sreq);
+      kms_request_str_append (sreq, request->payload);
+   }
+
+   success = true;
+done:
+   kms_request_str_destroy (signature);
+
+   if (!success) {
+      kms_request_str_destroy (sreq);
+      sreq = NULL;
+   }
+
+   return sreq;
 }

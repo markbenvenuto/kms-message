@@ -45,10 +45,12 @@ kms_request_add_header_field_from_chars (kms_request_t *request,
                                          const char *value);
 bool
 kms_request_append_header_field_value_from_chars (kms_request_t *request,
-                                                  const char *value);
+                                                  const char *value,
+                                                  size_t len);
 bool
 kms_request_append_payload_from_chars (kms_request_t *request,
-                                       const char *payload);
+                                       const char *payload,
+                                       size_t len);
 kms_request_str_t *
 kms_request_get_canonical (kms_request_t *request);
 kms_request_str_t *
@@ -57,5 +59,7 @@ bool
 kms_request_get_signing_key (kms_request_t *request, unsigned char *key);
 kms_request_str_t *
 kms_request_get_signature (kms_request_t *request);
+kms_request_str_t *
+kms_request_get_signed (kms_request_t *request);
 
 #endif /* KMS_REQUEST_H */
