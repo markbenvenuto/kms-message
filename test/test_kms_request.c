@@ -307,15 +307,13 @@ example_signature_test (void)
    kms_request_destroy (request);
 }
 
-#define RUN_TEST(_func)                                     \
-   do {                                                     \
-      if (selector && 0 != strcasecmp (#_func, selector)) { \
-         printf ("SKIP: %s\n", #_func);                     \
-      } else {                                              \
-         printf ("%s\n", #_func);                           \
-         _func ();                                          \
-         ran_tests = true;                                  \
-      }                                                     \
+#define RUN_TEST(_func)                                      \
+   do {                                                      \
+      if (!selector || 0 == strcasecmp (#_func, selector)) { \
+         printf ("%s\n", #_func);                            \
+         _func ();                                           \
+         ran_tests = true;                                   \
+      }                                                      \
    } while (0)
 
 
