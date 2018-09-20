@@ -30,6 +30,8 @@
 const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
 
 const char *skipped_aws_tests[] = {
+   /* we don't yet support temporary security credentials provided by the AWS
+    * Security Token Service (AWS STS). see post-sts-token/readme.txt */
    "post-sts-token",
 };
 
