@@ -26,7 +26,7 @@
 typedef struct _kms_request_t kms_request_t;
 
 kms_request_t *
-kms_request_new (const char *method, const char *path_and_query);
+kms_request_new (kms_request_str_t *method, kms_request_str_t *path_and_query);
 void
 kms_request_destroy (kms_request_t *request);
 const char *

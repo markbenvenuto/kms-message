@@ -165,6 +165,18 @@ kms_request_str_set_chars (kms_request_str_t *str, const char *chars)
    str->len = len;
 }
 
+bool
+kms_request_str_ends_with (kms_request_str_t *str, kms_request_str_t *suffix)
+{
+   if (str->len >= suffix->len &&
+       0 == strncmp (
+               &str->str[str->len - suffix->len], suffix->str, suffix->len)) {
+      return true;
+   }
+
+   return false;
+}
+
 void
 kms_request_str_append (kms_request_str_t *str, kms_request_str_t *appended)
 {
@@ -360,4 +372,127 @@ kms_request_str_append_hex (kms_request_str_t *str,
    free (hex_chars);
 
    return true;
+}
+
+static bool
+starts_with (char *s, const char *prefix)
+{
+   if (strstr (s, prefix) == s) {
+      return true;
+   }
+
+   return false;
+}
+
+/* remove from last slash to the end, but don't remove slash from start */
+static void
+delete_last_segment (kms_request_str_t *str, bool is_absolute)
+{
+   ssize_t i;
+
+   if (!str->len) {
+      return;
+   }
+
+   for (i = str->len - 1; i >= 0; --i) {
+      if (str->str[i] == '/') {
+         if (i == 0 && is_absolute) {
+            str->len = 1;
+         } else {
+            str->len = (size_t) i;
+         }
+
+         goto done;
+      }
+   }
+
+   /* no slashes */
+   str->len = 0;
+
+done:
+   str->str[str->len] = '\0';
+}
+
+/* follow algorithm in https://tools.ietf.org/html/rfc3986#section-5.2.4,
+ * the block comments are copied from there */
+kms_request_str_t *
+kms_request_str_path_normalized (kms_request_str_t *str)
+{
+   kms_request_str_t *slash = kms_request_str_new_from_chars ("/", 1);
+   kms_request_str_t *out = kms_request_str_new ();
+   char *in = strdup (str->str);
+   char *p = in;
+   char *end = in + str->len;
+   bool is_absolute = (*p == '/');
+
+   if (0 == strcmp (p, "/")) {
+      kms_request_str_append_char (out, '/');
+      return out;
+   }
+
+   while (p < end) {
+      /* If the input buffer begins with a prefix of "../" or "./",
+       * then remove that prefix from the input buffer */
+      if (starts_with (p, "../")) {
+         p += 3;
+      } else if (starts_with (p, "./")) {
+         p += 2;
+      }
+      /* otherwise, if the input buffer begins with a prefix of "/./" or "/.",
+       * where "." is a complete path segment, then replace that prefix with "/"
+       * in the input buffer */
+      else if (starts_with (p, "/./")) {
+         p += 2;
+      } else if (0 == strcmp (p, "/.")) {
+         break;
+      }
+      /* otherwise, if the input buffer begins with a prefix of "/../" or "/..",
+       * where ".." is a complete path segment, then replace that prefix with
+       * "/" in the input buffer and remove the last segment and its preceding
+       * "/" (if any) from the output buffer */
+      else if (starts_with (p, "/../")) {
+         p += 3;
+         delete_last_segment (out, is_absolute);
+      } else if (0 == strcmp (p, "/..")) {
+         delete_last_segment (out, is_absolute);
+         break;
+      }
+      /* otherwise, if the input buffer consists only of "." or "..", then
+         remove that from the input buffer */
+      else if (0 == strcmp (p, ".") || 0 == strcmp (p, "..")) {
+         break;
+      }
+      /* otherwise, move the first path segment in the input buffer to the end
+       * of the output buffer, including the initial "/" character (if any) and
+       * any subsequent characters up to, but not including, the next "/"
+       * character or the end of the input buffer. */
+      else {
+         char *next_slash = strchr (p + 1, '/');
+         if (!next_slash) {
+            next_slash = end;
+         }
+
+         /* fold repeated slashes */
+         if (kms_request_str_ends_with (out, slash) && *p == '/') {
+            ++p;
+         }
+
+         /* normalize "a/../b" as "b", not as "/b" */
+         if (out->len == 0 && !is_absolute && *p == '/') {
+            ++p;
+         }
+
+         kms_request_str_append_chars (out, p, next_slash - p);
+         p = next_slash;
+      }
+   }
+
+   free (in);
+   kms_request_str_destroy (slash);
+
+   if (!out->len) {
+      kms_request_str_append_char (out, '/');
+   }
+
+   return out;
 }

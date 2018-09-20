@@ -40,6 +40,8 @@ kms_request_str_t *
 kms_request_str_dup (kms_request_str_t *str);
 void
 kms_request_str_set_chars (kms_request_str_t *str, const char *chars);
+bool
+kms_request_str_ends_with (kms_request_str_t *str, kms_request_str_t *suffix);
 void
 kms_request_str_append (kms_request_str_t *str, kms_request_str_t *appended);
 void
@@ -69,5 +71,7 @@ bool
 kms_request_str_append_hex (kms_request_str_t *str,
                             unsigned char *data,
                             size_t len);
+kms_request_str_t *
+kms_request_str_path_normalized (kms_request_str_t *str);
 
 #endif // KMS_MESSAGE_KMS_REQUEST_STR_H

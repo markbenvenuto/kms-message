@@ -80,7 +80,7 @@ parse_query_params (kms_request_str_t *q)
 }
 
 kms_request_t *
-kms_request_new (const char *method, const char *path_and_query)
+kms_request_new (kms_request_str_t *method, kms_request_str_t *path_and_query)
 {
    const char *question_mark;
    kms_request_t *request = calloc (sizeof (kms_request_t), 1);
@@ -90,14 +90,14 @@ kms_request_new (const char *method, const char *path_and_query)
    request->access_key_id = kms_request_str_new ();
    request->secret_key = kms_request_str_new ();
 
-   question_mark = strchr (path_and_query, '?');
+   question_mark = strchr (path_and_query->str, '?');
    if (question_mark) {
       request->path = kms_request_str_new_from_chars (
-         path_and_query, question_mark - path_and_query);
+         path_and_query->str, question_mark - path_and_query->str);
       request->query = kms_request_str_new_from_chars (question_mark + 1, -1);
       request->query_params = parse_query_params (request->query);
    } else {
-      request->path = kms_request_str_new_from_chars (path_and_query, -1);
+      request->path = kms_request_str_dup (path_and_query);
       request->query = kms_request_str_new ();
       request->query_params = kms_kv_list_new ();
    }
@@ -106,7 +106,7 @@ kms_request_new (const char *method, const char *path_and_query)
    request->payload = kms_request_str_new ();
    request->datetime = kms_request_str_new ();
    request->date = kms_request_str_new ();
-   request->method = kms_request_str_new_from_chars (method, -1);
+   request->method = kms_request_str_dup (method);
    request->header_fields = kms_kv_list_new ();
 
    return request;
@@ -243,7 +243,7 @@ cmp_query_params (const void *a, const void *b)
    if (r != 0) {
       return r;
    }
-   
+
    /* not in docs, but tested in get-vanilla-query-order-key: sort by value */
    return strcmp (((kms_kv_t *) a)->value->str, ((kms_kv_t *) b)->value->str);
 }
@@ -345,6 +345,7 @@ kms_request_str_t *
 kms_request_get_canonical (kms_request_t *request)
 {
    kms_request_str_t *canonical;
+   kms_request_str_t *normalized;
    kms_kv_list_t *lst;
 
    if (request->failed) {
@@ -358,7 +359,8 @@ kms_request_get_canonical (kms_request_t *request)
    canonical = kms_request_str_new ();
    kms_request_str_append (canonical, request->method);
    kms_request_str_append_newline (canonical);
-   kms_request_str_append_escaped (canonical, request->path, false);
+   normalized = kms_request_str_path_normalized (request->path);
+   kms_request_str_append_escaped (canonical, normalized, false);
    kms_request_str_append_newline (canonical);
    append_canonical_query (request, canonical);
    kms_request_str_append_newline (canonical);
@@ -368,6 +370,7 @@ kms_request_get_canonical (kms_request_t *request)
    kms_request_str_append_newline (canonical);
    kms_request_str_append_hashed (canonical, request->payload);
 
+   kms_request_str_destroy (normalized);
    kms_kv_list_destroy (lst);
 
    return canonical;
