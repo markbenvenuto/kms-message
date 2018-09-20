@@ -230,6 +230,24 @@ kms_request_append_payload_from_chars (kms_request_t *request,
    return true;
 }
 
+/* docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
+ *
+ * "Sort the parameter names by character code point in ascending order. For
+ * example, a parameter name that begins with the uppercase letter F precedes a
+ * parameter name that begins with a lowercase letter b."
+ */
+static int
+cmp_query_params (const void *a, const void *b)
+{
+   int r = strcmp (((kms_kv_t *) a)->key->str, ((kms_kv_t *) b)->key->str);
+   if (r != 0) {
+      return r;
+   }
+   
+   /* not in docs, but tested in get-vanilla-query-order-key: sort by value */
+   return strcmp (((kms_kv_t *) a)->value->str, ((kms_kv_t *) b)->value->str);
+}
+
 static void
 append_canonical_query (kms_request_t *request, kms_request_str_t *str)
 {
@@ -240,7 +258,7 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
       return;
    }
 
-   lst = kms_kv_list_sorted (request->query_params);
+   lst = kms_kv_list_sorted (request->query_params, cmp_query_params);
 
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append_escaped (str, lst->kvs[i].key, true);
@@ -253,20 +271,38 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
    }
 }
 
+/* "lst" is a sorted list of headers */
 static void
 append_canonical_headers (kms_kv_list_t *lst, kms_request_str_t *str)
 {
    size_t i;
+   kms_kv_t *kv;
+   const kms_request_str_t *previous_key = NULL;
 
    /* aws docs: "To create the canonical headers list, convert all header names
     * to lowercase and remove leading spaces and trailing spaces. Convert
-    * sequential spaces in the header value to a single space." */
+    * sequential spaces in the header value to a single space." "Do not sort the
+    * values in headers that have multiple values." */
    for (i = 0; i < lst->len; i++) {
-      kms_request_str_append_lowercase (str, lst->kvs[i].key);
+      kv = &lst->kvs[i];
+      if (previous_key && 0 == strcasecmp (previous_key->str, kv->key->str)) {
+         /* duplicate header */
+         kms_request_str_append_char (str, ',');
+         kms_request_str_append_stripped (str, kv->value);
+         continue;
+      }
+
+      if (i > 0) {
+         kms_request_str_append_newline (str);
+      }
+
+      kms_request_str_append_lowercase (str, kv->key);
       kms_request_str_append_char (str, ':');
-      kms_request_str_append_stripped (str, lst->kvs[i].value);
-      kms_request_str_append_newline (str);
+      kms_request_str_append_stripped (str, kv->value);
+      previous_key = kv->key;
    }
+
+   kms_request_str_append_newline (str);
 }
 
 static void
@@ -274,12 +310,35 @@ append_signed_headers (kms_kv_list_t *lst, kms_request_str_t *str)
 {
    size_t i;
 
+   kms_kv_t *kv;
+   const kms_request_str_t *previous_key = NULL;
+
    for (i = 0; i < lst->len; i++) {
-      kms_request_str_append_lowercase (str, lst->kvs[i].key);
+      kv = &lst->kvs[i];
+      if (previous_key && 0 == strcasecmp (previous_key->str, kv->key->str)) {
+         /* duplicate header */
+         continue;
+      }
+
+      kms_request_str_append_lowercase (str, kv->key);
       if (i < lst->len - 1) {
          kms_request_str_append_char (str, ';');
       }
+
+      previous_key = kv->key;
    }
+}
+
+/* docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
+ *
+ * "Build the canonical headers list by sorting the (lowercase) headers by
+ * character code... Do not sort the values in headers that have multiple
+ * values."
+ */
+static int
+cmp_header_field_names (const void *a, const void *b)
+{
+   return strcasecmp (((kms_kv_t *) a)->key->str, ((kms_kv_t *) b)->key->str);
 }
 
 kms_request_str_t *
@@ -294,7 +353,7 @@ kms_request_get_canonical (kms_request_t *request)
 
    /* AWS docs: "you must include the host header at a minimum" */
    assert (request->header_fields->len >= 1);
-   lst = kms_kv_list_sorted (request->header_fields);
+   lst = kms_kv_list_sorted (request->header_fields, cmp_header_field_names);
 
    canonical = kms_request_str_new ();
    kms_request_str_append (canonical, request->method);
@@ -450,7 +509,7 @@ kms_request_get_signature (kms_request_t *request)
    kms_request_str_append_char (sig, '/');
    kms_request_str_append (sig, request->service);
    kms_request_str_append_chars (sig, "/aws4_request, SignedHeaders=", -1);
-   lst = kms_kv_list_sorted (request->header_fields);
+   lst = kms_kv_list_sorted (request->header_fields, cmp_header_field_names);
    append_signed_headers (lst, sig);
    kms_request_str_append_chars (sig, ", Signature=", -1);
    if (!(kms_request_get_signing_key (request, signing_key) &&

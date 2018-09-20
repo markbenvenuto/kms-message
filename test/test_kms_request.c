@@ -29,9 +29,6 @@
 const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
 
 const char *skipped_aws_tests[] = {
-   /* assume no duplicate headers */
-   "get-header-key-duplicate",
-   "get-header-value-order",
    "normalize-path",
    "post-sts-token",
 };

@@ -83,8 +83,7 @@ kms_kv_list_find (const kms_kv_list_t *lst, const char *key)
    size_t i;
 
    for (i = 0; i < lst->len; i++) {
-      if (0 ==
-          strcmp ((const char *) lst->kvs[i].key->str, (const char *) key)) {
+      if (0 == strcmp ((const char *) lst->kvs[i].key->str, key)) {
          return &lst->kvs[i];
       }
    }
@@ -92,24 +91,8 @@ kms_kv_list_find (const kms_kv_list_t *lst, const char *key)
    return NULL;
 }
 
-static int
-sort_kvs_cmp (const void *a, const void *b)
-{
-   kms_kv_t *kv_a = (kms_kv_t *) a;
-   kms_kv_t *kv_b = (kms_kv_t *) b;
-
-   int r = strcmp (kv_a->key->str, kv_b->key->str);
-
-   if (r != 0) {
-      return r;
-   }
-
-   return strcmp (kv_a->value->str, kv_b->value->str);
-}
-
-/* TODO: lowercase before sorting? */
 kms_kv_list_t *
-kms_kv_list_sorted (kms_kv_list_t *lst)
+kms_kv_list_sorted (kms_kv_list_t *lst, int (*cmp) (const void *, const void *))
 {
    kms_kv_list_t *dup;
    size_t i;
@@ -127,7 +110,7 @@ kms_kv_list_sorted (kms_kv_list_t *lst)
    }
 
    /* choose a stable sorting algorithm */
-   (void) mergesort (dup->kvs, dup->len, sizeof (kms_kv_t), sort_kvs_cmp);
+   (void) mergesort (dup->kvs, dup->len, sizeof (kms_kv_t), cmp);
 
    return dup;
 }
