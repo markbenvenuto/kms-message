@@ -81,8 +81,8 @@ parse_query_params (kms_request_str_t *q)
 kms_request_t *
 kms_request_new (const char *method, const char *path_and_query)
 {
-   const char *question_mark;
    kms_request_t *request = calloc (sizeof (kms_request_t), 1);
+   const char *question_mark;
 
    request->region = kms_request_str_new ();
    request->service = kms_request_str_new ();
@@ -103,10 +103,12 @@ kms_request_new (const char *method, const char *path_and_query)
 
    request->failed = false;
    request->payload = kms_request_str_new ();
-   request->datetime = kms_request_str_new ();
    request->date = kms_request_str_new ();
+   request->datetime = kms_request_str_new ();
    request->method = kms_request_str_new_from_chars (method, -1);
    request->header_fields = kms_kv_list_new ();
+
+   kms_request_set_date (request, NULL);
 
    return request;
 }
@@ -135,31 +137,61 @@ kms_request_get_error (kms_request_t *request)
    return request->failed ? request->error : NULL;
 }
 
+#define AMZ_DT_FORMAT "YYYYmmDDTHHMMSSZ"
+
+bool
+kms_request_set_date (kms_request_t *request, const struct tm *tm)
+{
+   char buf[sizeof AMZ_DT_FORMAT];
+   struct tm tmp_tm;
+
+   if (!tm) {
+      /* use current time */
+      time_t t;
+      time (&t);
+      gmtime_r (&t, &tmp_tm);
+      tm = &tmp_tm;
+   }
+
+   if (0 == strftime (buf, sizeof AMZ_DT_FORMAT, "%Y%m%dT%H%M%SZ", tm)) {
+      return false;
+   }
+
+   kms_request_str_set_chars (request->date, buf, sizeof "YYYYmmDD" - 1);
+   kms_request_str_set_chars (request->datetime, buf, sizeof AMZ_DT_FORMAT - 1);
+   kms_kv_list_del (request->header_fields, "X-Amz-Date");
+   kms_request_add_header_field (request, "X-Amz-Date", buf);
+
+   return true;
+}
+
+#undef AMZ_DT_FORMAT
+
 bool
 kms_request_set_region (kms_request_t *request, const char *region)
 {
-   kms_request_str_set_chars (request->region, region);
+   kms_request_str_set_chars (request->region, region, -1);
    return true;
 }
 
 bool
 kms_request_set_service (kms_request_t *request, const char *service)
 {
-   kms_request_str_set_chars (request->service, service);
+   kms_request_str_set_chars (request->service, service, -1);
    return true;
 }
 
 bool
 kms_request_set_access_key_id (kms_request_t *request, const char *akid)
 {
-   kms_request_str_set_chars (request->access_key_id, akid);
+   kms_request_str_set_chars (request->access_key_id, akid, -1);
    return true;
 }
 
 bool
 kms_request_set_secret_key (kms_request_t *request, const char *key)
 {
-   kms_request_str_set_chars (request->secret_key, key);
+   kms_request_str_set_chars (request->secret_key, key, -1);
    return true;
 }
 
@@ -169,29 +201,12 @@ kms_request_add_header_field (kms_request_t *request,
                               const char *value)
 {
    kms_request_str_t *k, *v;
-   char *t;
 
    CHECK_FAILED;
 
    k = kms_request_str_new_from_chars (field_name, -1);
    v = kms_request_str_new_from_chars (value, -1);
    kms_kv_list_add (request->header_fields, k, v);
-
-   /* get date from X-Amz-Date header like "20150830T123600Z", split on "T" */
-   if (!strcasecmp (field_name, "X-Amz-Date")) {
-      kms_request_str_destroy (request->date);
-      if ((t = strchr (v->str, 'T'))) {
-         request->date = kms_request_str_new_from_chars (v->str, t - v->str);
-      } else {
-         request->date = kms_request_str_dup (v);
-      }
-
-      kms_request_str_destroy (request->datetime);
-      request->datetime = v;
-   } else {
-      kms_request_str_destroy (v);
-   }
-
    kms_request_str_destroy (k);
 
    return true;

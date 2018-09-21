@@ -123,6 +123,16 @@ read_aws_test (const char *path, const char *suffix)
    return str;
 }
 
+void
+set_test_date (kms_request_t *request)
+{
+   struct tm tm;
+
+   /* all tests use the same date and time */
+   assert (strptime ("20150830T123600Z", "%Y%m%dT%H%M%SZ", &tm));
+   assert (kms_request_set_date (request, &tm));
+}
+
 kms_request_t *
 read_req (const char *path)
 {
@@ -186,6 +196,8 @@ read_req (const char *path)
 
    fclose (f);
    free (file_path);
+
+   set_test_date (request);
 
    return request;
 }
@@ -328,7 +340,7 @@ example_signature_test (void)
    char *sig;
 
    request = kms_request_new ("GET", "uri");
-   kms_request_add_header_field (request, "X-Amz-Date", "20150830T123600Z");
+   set_test_date (request);
    kms_request_set_region (request, "us-east-1");
    kms_request_set_service (request, "iam");
    kms_request_set_secret_key (request,

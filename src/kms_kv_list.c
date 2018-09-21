@@ -82,12 +82,29 @@ kms_kv_list_find (const kms_kv_list_t *lst, const char *key)
    size_t i;
 
    for (i = 0; i < lst->len; i++) {
-      if (0 == strcmp ((const char *) lst->kvs[i].key->str, key)) {
+      if (0 == strcmp (lst->kvs[i].key->str, key)) {
          return &lst->kvs[i];
       }
    }
 
    return NULL;
+}
+
+/* TODO: unittest this */
+void
+kms_kv_list_del (kms_kv_list_t *lst, const char *key)
+{
+   size_t i;
+
+   for (i = 0; i < lst->len; i++) {
+      if (0 == strcmp (lst->kvs[i].key->str, key)) {
+         kv_cleanup (&lst->kvs[i]);
+         memmove (&lst->kvs[i],
+                  &lst->kvs[i + 1],
+                  sizeof (kms_kv_t) * (lst->len - i - 1));
+         lst->len--;
+      }
+   }
 }
 
 kms_kv_list_t *

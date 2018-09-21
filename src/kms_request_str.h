@@ -45,7 +45,9 @@ kms_request_str_reserve (kms_request_str_t *str, size_t size);
 KMS_MSG_EXPORT (kms_request_str_t *)
 kms_request_str_dup (kms_request_str_t *str);
 KMS_MSG_EXPORT (void)
-kms_request_str_set_chars (kms_request_str_t *str, const char *chars);
+kms_request_str_set_chars (kms_request_str_t *str,
+                           const char *chars,
+                           ssize_t len);
 KMS_MSG_EXPORT (bool)
 kms_request_str_ends_with (kms_request_str_t *str, kms_request_str_t *suffix);
 KMS_MSG_EXPORT (void)

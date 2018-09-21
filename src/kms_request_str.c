@@ -173,12 +173,14 @@ kms_request_str_dup (kms_request_str_t *str)
 }
 
 void
-kms_request_str_set_chars (kms_request_str_t *str, const char *chars)
+kms_request_str_set_chars (kms_request_str_t *str,
+                           const char *chars,
+                           ssize_t len)
 {
-   size_t len = strlen (chars);
-   kms_request_str_reserve (str, len); /* adds 1 for nil */
-   memcpy (str->str, chars, len + 1);
-   str->len = len;
+   size_t actual_len = len < 0 ? strlen (chars) : (size_t) len;
+   kms_request_str_reserve (str, actual_len); /* adds 1 for nil */
+   memcpy (str->str, chars, actual_len + 1);
+   str->len = actual_len;
 }
 
 bool

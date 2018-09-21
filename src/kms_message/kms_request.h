@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <time.h>
 
 typedef struct _kms_request_t kms_request_t;
 
@@ -29,6 +30,8 @@ KMS_MSG_EXPORT (void)
 kms_request_destroy (kms_request_t *request);
 KMS_MSG_EXPORT (const char *)
 kms_request_get_error (kms_request_t *request);
+KMS_MSG_EXPORT (bool)
+kms_request_set_date (kms_request_t *request, const struct tm *tm);
 KMS_MSG_EXPORT (bool)
 kms_request_set_region (kms_request_t *request, const char *region);
 KMS_MSG_EXPORT (bool)
