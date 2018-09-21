@@ -49,7 +49,8 @@ kms_kv_list_find (const kms_kv_list_t *lst, const char *key);
 void
 kms_kv_list_del (kms_kv_list_t *lst, const char *key);
 kms_kv_list_t *
-kms_kv_list_sorted (kms_kv_list_t *lst,
-                    int (*cmp) (const void *, const void *));
+kms_kv_list_dup (const kms_kv_list_t *lst);
+void
+kms_kv_list_sort (kms_kv_list_t *lst, int (*cmp) (const void *, const void *));
 
 #endif /* KMS_KV_LIST_H */

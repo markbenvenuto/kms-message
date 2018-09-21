@@ -272,7 +272,8 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
       return;
    }
 
-   lst = kms_kv_list_sorted (request->query_params, cmp_query_params);
+   lst = kms_kv_list_dup (request->query_params);
+   kms_kv_list_sort (lst, cmp_query_params);
 
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append_escaped (str, lst->kvs[i].key, true);
@@ -355,6 +356,30 @@ cmp_header_field_names (const void *a, const void *b)
    return strcasecmp (((kms_kv_t *) a)->key->str, ((kms_kv_t *) b)->key->str);
 }
 
+static kms_kv_list_t *
+canonical_headers (const kms_request_t *request)
+{
+   kms_kv_list_t *lst;
+   kms_request_str_t *k_host;
+   kms_request_str_t *v_host;
+
+   lst = kms_kv_list_dup (request->header_fields);
+   if (!kms_kv_list_find (lst, "Host")) {
+      /* like "kms.us-east-1.amazonaws.com" */
+      k_host = kms_request_str_new_from_chars ("Host", -1);
+      v_host = kms_request_str_dup (request->service);
+      kms_request_str_append_char (v_host, '.');
+      kms_request_str_append (v_host, request->region);
+      kms_request_str_append_chars (v_host, ".amazonaws.com", -1);
+      kms_kv_list_add (lst, k_host, v_host);
+      kms_request_str_destroy (k_host);
+      kms_request_str_destroy (v_host);
+   }
+
+   kms_kv_list_sort (lst, cmp_header_field_names);
+   return lst;
+}
+
 char *
 kms_request_get_canonical (kms_request_t *request)
 {
@@ -366,10 +391,6 @@ kms_request_get_canonical (kms_request_t *request)
       return NULL;
    }
 
-   /* AWS docs: "you must include the host header at a minimum" */
-   assert (request->header_fields->len >= 1);
-   lst = kms_kv_list_sorted (request->header_fields, cmp_header_field_names);
-
    canonical = kms_request_str_new ();
    kms_request_str_append (canonical, request->method);
    kms_request_str_append_newline (canonical);
@@ -378,6 +399,7 @@ kms_request_get_canonical (kms_request_t *request)
    kms_request_str_append_newline (canonical);
    append_canonical_query (request, canonical);
    kms_request_str_append_newline (canonical);
+   lst = canonical_headers (request);
    append_canonical_headers (lst, canonical);
    kms_request_str_append_newline (canonical);
    append_signed_headers (lst, canonical);
@@ -526,7 +548,7 @@ kms_request_get_signature (kms_request_t *request)
    kms_request_str_append_char (sig, '/');
    kms_request_str_append (sig, request->service);
    kms_request_str_append_chars (sig, "/aws4_request, SignedHeaders=", -1);
-   lst = kms_kv_list_sorted (request->header_fields, cmp_header_field_names);
+   lst = canonical_headers (request);
    append_signed_headers (lst, sig);
    kms_request_str_append_chars (sig, ", Signature=", -1);
    if (!(kms_request_get_signing_key (request, signing_key) &&
@@ -553,7 +575,7 @@ kms_request_get_signed (kms_request_t *request)
 {
    bool success = false;
    kms_kv_list_t *lst = NULL;
-   kms_request_str_t *signature = NULL;
+   char *signature = NULL;
    kms_request_str_t *sreq = NULL;
    size_t i;
 
@@ -575,7 +597,7 @@ kms_request_get_signed (kms_request_t *request)
    kms_request_str_append_newline (sreq);
 
    /* headers */
-   lst = request->header_fields;
+   lst = canonical_headers (request);
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append (sreq, lst->kvs[i].key);
       kms_request_str_append_char (sreq, ':');
@@ -584,14 +606,14 @@ kms_request_get_signed (kms_request_t *request)
    }
 
    /* authorization header */
-   signature = kms_request_str_wrap (kms_request_get_signature (request), -1);
+   signature = kms_request_get_signature (request);
    if (!signature) {
       goto done;
    }
 
    /* note space after ':', to match test .sreq files */
    kms_request_str_append_chars (sreq, "Authorization: ", -1);
-   kms_request_str_append (sreq, signature);
+   kms_request_str_append_chars (sreq, signature, -1);
 
    /* body */
    if (request->payload->len) {
@@ -602,7 +624,8 @@ kms_request_get_signed (kms_request_t *request)
 
    success = true;
 done:
-   kms_request_str_destroy (signature);
+   free (signature);
+   kms_kv_list_destroy (lst);
 
    if (!success) {
       kms_request_str_destroy (sreq);

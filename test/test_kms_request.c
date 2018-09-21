@@ -78,20 +78,8 @@ last_segment (const char *str)
 }
 
 char *
-aws_test_file_path (const char *path, const char *suffix)
+read_test (const char *file_path)
 {
-   char *r;
-   const char *test_name = last_segment (path);
-   char file_path[PATH_MAX];
-   snprintf (file_path, PATH_MAX, "%s/%s.%s", path, test_name, suffix);
-   r = strdup (file_path);
-   return r;
-}
-
-char *
-read_aws_test (const char *path, const char *suffix)
-{
-   char *file_path = aws_test_file_path (path, suffix);
    FILE *f;
    struct stat file_stat;
    size_t f_size;
@@ -116,10 +104,30 @@ read_aws_test (const char *path, const char *suffix)
    }
 
    fclose (f);
-   free (file_path);
-
    str[f_size] = '\0';
 
+   return str;
+}
+
+char *
+aws_test_file_path (const char *path, const char *suffix)
+{
+   char *r;
+   const char *test_name = last_segment (path);
+   char file_path[PATH_MAX];
+   snprintf (file_path, PATH_MAX, "%s/%s.%s", path, test_name, suffix);
+   r = strdup (file_path);
+   return r;
+}
+
+char *
+read_aws_test (const char *path, const char *suffix)
+{
+   char *str;
+   char *file_path = aws_test_file_path (path, suffix);
+
+   str = read_test (file_path);
+   free (file_path);
    return str;
 }
 
@@ -430,6 +438,41 @@ path_normalization_test (void)
    }
 }
 
+static void
+host_test (void)
+{
+   char *actual, *expect;
+   kms_request_t *request = kms_request_new ("POST", "/");
+
+   kms_request_set_region (request, "foo-region");
+   kms_request_set_service (request, "foo-service");
+   kms_request_set_access_key_id (request, "AKIDEXAMPLE");
+   kms_request_set_secret_key (request,
+                               "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
+
+   set_test_date (request);
+   actual = kms_request_get_signed (request);
+   expect = read_test ("test/host_test.sreq");
+
+   if (0 != strcmp (actual, expect)) {
+      fprintf (stderr,
+               "%s failed, mismatch starting at %zd\n"
+               "--- Expect (%zu chars) ---\n%s\n"
+               "--- Actual (%zu chars) ---\n%s\n",
+               __FUNCTION__,
+               first_non_matching (expect, actual),
+               strlen (expect),
+               expect,
+               strlen (actual),
+               actual);
+
+      abort ();
+   }
+
+   free (expect);
+   free (actual);
+   kms_request_destroy (request);
+}
 
 #define RUN_TEST(_func)                                      \
    do {                                                      \
@@ -461,6 +504,7 @@ main (int argc, char *argv[])
 
    RUN_TEST (example_signature_test);
    RUN_TEST (path_normalization_test);
+   RUN_TEST (host_test);
 
    ran_tests |= spec_tests (aws_test_suite_dir, selector);
 
