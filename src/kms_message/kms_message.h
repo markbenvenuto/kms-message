@@ -17,6 +17,29 @@
 #ifndef KMS_MESSAGE_H
 #define KMS_MESSAGE_H
 
+#ifdef _MSC_VER
+#ifdef KMS_MSG_STATIC
+#define KMS_MSG_API
+#elif defined(KMS_MSG_COMPILATION)
+#define KMS_MSG_API __declspec(dllexport)
+#else
+#define KMS_MSG_API __declspec(dllimport)
+#endif
+#define KMS_MSG_CALL __cdecl
+#elif defined(__GNUC__)
+#ifdef KMS_MSG_STATIC
+#define KMS_MSG_API
+#elif defined(KMS_MSG_COMPILATION)
+#define KMS_MSG_API __attribute__ ((visibility ("default")))
+#else
+#define KMS_MSG_API
+#endif
+#define KMS_MSG_CALL
+#endif
+
+#define KMS_MSG_EXPORT(type) KMS_MSG_API type KMS_MSG_CALL
+
+#include "kms_request_str.h"
 #include "kms_request.h"
 
 #endif /* KMS_MESSAGE_H */

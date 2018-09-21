@@ -17,9 +17,8 @@
 
 #include "kms_crypto.h"
 #include "kms_kv_list.h"
-#include "kms_message.h"
+#include "kms_message/kms_message.h"
 #include "kms_private.h"
-#include "kms_request_str.h"
 
 #include <assert.h>
 #include <openssl/evp.h>

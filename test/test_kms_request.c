@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#include "src/kms_message.h"
-#include "src/kms_request_str.h"
+#include "src/kms_message/kms_message.h"
 
 #include <assert.h>
 #include <dirent.h>
@@ -25,7 +24,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <src/kms_request_str.h>
 
 const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
 

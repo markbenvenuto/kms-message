@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include "kms_message/kms_message.h"
 #include "kms_crypto.h"
 #include "kms_private.h"
-#include "kms_request_str.h"
 
 #include <assert.h>
 #include <stdio.h>
