@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <src/hexlify.h>
+#include <src/kms_request_str.h>
 
 const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
 
@@ -34,12 +36,12 @@ const char *skipped_aws_tests[] = {
 };
 
 bool
-skip_aws_test (kms_request_str_t *test_name)
+skip_aws_test (const char *test_name)
 {
    size_t i;
 
    for (i = 0; i < sizeof (skipped_aws_tests) / sizeof (char *); i++) {
-      if (0 == strcmp (test_name->str, skipped_aws_tests[i])) {
+      if (0 == strcmp (test_name, skipped_aws_tests[i])) {
          return true;
       }
    }
@@ -47,100 +49,106 @@ skip_aws_test (kms_request_str_t *test_name)
    return false;
 }
 
-kms_request_str_t *
-last_segment (kms_request_str_t *str)
+bool
+ends_with (const char *str, const char *suffix)
 {
-   char *p = str->str + str->len;
+   size_t str_len = strlen (str);
+   size_t suf_len = strlen (suffix);
+   if (str_len >= suf_len &&
+       0 == strncmp (&str[str_len - suf_len], suffix, suf_len)) {
+      return true;
+   }
 
-   while (--p > str->str) {
+   return false;
+}
+
+
+const char *
+last_segment (const char *str)
+{
+   const char *p = str + strlen (str);
+
+   while (--p > str) {
       if (*p == '/') {
-         return kms_request_str_new_from_chars (p + 1, -1);
+         return strdup (p + 1);
       }
    }
 
-   return kms_request_str_dup (str);
+   return strdup (str);
 }
 
-kms_request_str_t *
-aws_test_file_path (kms_request_str_t *path, const char *suffix)
+char *
+aws_test_file_path (const char *path, const char *suffix)
 {
-   kms_request_str_t *test_name = last_segment (path);
-   kms_request_str_t *file_path;
-
-   file_path = kms_request_str_dup (path);
-   kms_request_str_append_char (file_path, '/');
-   kms_request_str_append (file_path, test_name);
-   kms_request_str_append_char (file_path, '.');
-   kms_request_str_append_chars (file_path, suffix, -1);
-   kms_request_str_destroy (test_name);
-
-   return file_path;
+   char *r;
+   const char *test_name = last_segment (path);
+   char file_path[PATH_MAX];
+   snprintf (file_path, PATH_MAX, "%s/%s.%s", path, test_name, suffix);
+   r = strdup (file_path);
+   return r;
 }
 
-kms_request_str_t *
-read_aws_test (kms_request_str_t *path, const char *suffix)
+char *
+read_aws_test (const char *path, const char *suffix)
 {
-   kms_request_str_t *file_path = aws_test_file_path (path, suffix);
+   char *file_path = aws_test_file_path (path, suffix);
    FILE *f;
    struct stat file_stat;
    size_t f_size;
-   kms_request_str_t *str;
+   char *str;
 
-   if (0 != stat (file_path->str, &file_stat)) {
-      perror (file_path->str);
+   if (0 != stat (file_path, &file_stat)) {
+      perror (file_path);
       abort ();
    }
 
-   f = fopen (file_path->str, "r");
+   f = fopen (file_path, "r");
    if (!f) {
-      perror (file_path->str);
+      perror (file_path);
       abort ();
    }
 
    f_size = (size_t) file_stat.st_size;
-   str = kms_request_str_new ();
-   kms_request_str_reserve (str, f_size);
-   if (f_size != fread (str->str, 1, f_size, f)) {
-      perror (file_path->str);
+   str = malloc (f_size + 1);
+   if (f_size != fread (str, 1, f_size, f)) {
+      perror (file_path);
       abort ();
    }
 
    fclose (f);
-   kms_request_str_destroy (file_path);
+   free (file_path);
 
-   str->len = f_size;
-   str->str[f_size] = '\0';
+   str[f_size] = '\0';
 
    return str;
 }
 
 kms_request_t *
-read_req (kms_request_str_t *path)
+read_req (const char *path)
 {
    kms_request_t *request;
-   kms_request_str_t *file_path = aws_test_file_path (path, "req");
+   char *file_path = aws_test_file_path (path, "req");
    FILE *f;
    size_t len;
    ssize_t line_len;
    char *line = NULL;
-   kms_request_str_t *method;
-   kms_request_str_t *uri_path;
+   char *method;
+   char *uri_path;
    char *field_name;
    char *field_value;
    bool r;
 
-   f = fopen (file_path->str, "r");
+   f = fopen (file_path, "r");
    if (!f) {
-      perror (file_path->str);
+      perror (file_path);
       abort ();
    }
 
    /* like "GET /path HTTP/1.1" */
    line_len = getline (&line, &len, f);
-   method = kms_request_str_new_from_chars (line, strchr (line, ' ') - line);
-   uri_path = kms_request_str_new_from_chars (line + method->len + 1,
-                                              line_len - method->len - 1 -
-                                                 strlen (" HTTP/1.1\n"));
+   method = strndup (line, strchr (line, ' ') - line);
+   uri_path = strndup (line + strlen (method) + 1,
+                       line_len - strlen (method) - 1 - strlen (" HTTP/1.1\n"));
 
    request = kms_request_new (method, uri_path);
    /* from docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html */
@@ -157,8 +165,7 @@ read_req (kms_request_str_t *path)
          assert (field_name);
          field_value = strtok (NULL, "\n");
          assert (field_value);
-         r = kms_request_add_header_field_from_chars (
-            request, field_name, field_value);
+         r = kms_request_add_header_field (request, field_name, field_value);
          assert (r);
       } else if (0 == strcmp (line, "\n")) {
          /* end of header */
@@ -166,41 +173,41 @@ read_req (kms_request_str_t *path)
       } else if (line_len > 2) {
          /* continuing a multiline header from previous line */
          /* TODO: is this a test quirk or HTTP specified behavior? */
-         kms_request_append_header_field_value_from_chars (request, "\n", 1);
+         kms_request_append_header_field_value (request, "\n", 1);
          /* omit this line's newline */
-         kms_request_append_header_field_value_from_chars (
+         kms_request_append_header_field_value (
             request, line, (size_t) (line_len - 1));
       }
    }
 
    while ((line_len = getline (&line, &len, f)) != -1) {
-      kms_request_append_payload_from_chars (request, line, (size_t) line_len);
+      kms_request_append_payload (request, line, (size_t) line_len);
    }
 
    fclose (f);
-   kms_request_str_destroy (file_path);
+   free (file_path);
 
    return request;
 }
 
 static ssize_t
-first_non_matching (kms_request_str_t *x, kms_request_str_t *y)
+first_non_matching (const char *x, const char *y)
 {
-   size_t len = x->len > y->len ? x->len : y->len;
+   size_t len = strlen (x) > strlen (y) ? strlen (x) : strlen (y);
    size_t i;
 
    for (i = 0; i < len; i++) {
-      if (x->str[i] != y->str[i]) {
+      if (x[i] != y[i]) {
          return i;
       }
    }
 
-   if (x->len > y->len) {
-      return y->len + 1;
+   if (strlen (x) > strlen (y)) {
+      return strlen (y) + 1;
    }
 
-   if (y->len > x->len) {
-      return x->len + 1;
+   if (strlen (y) > strlen (x)) {
+      return strlen (x) + 1;
    }
 
    /* the strings match */
@@ -209,41 +216,40 @@ first_non_matching (kms_request_str_t *x, kms_request_str_t *y)
 
 void
 aws_sig_v4_test_compare (kms_request_t *request,
-                         kms_request_str_t *(*func) (kms_request_t *),
-                         kms_request_str_t *dir_path,
+                         char *(*func) (kms_request_t *),
+                         const char *dir_path,
                          const char *suffix)
 {
-   kms_request_str_t *test_name = last_segment (dir_path);
-   kms_request_str_t *expect;
-   kms_request_str_t *actual;
+   const char *test_name = last_segment (dir_path);
+   char *expect;
+   char *actual;
 
    /* canonical request */
    expect = read_aws_test (dir_path, suffix);
    actual = func (request);
 
-   if (expect->len != actual->len ||
-       0 != memcmp (expect->str, actual->str, actual->len)) {
+   if (strlen (expect) != strlen (actual) ||
+       0 != memcmp (expect, actual, strlen (actual))) {
       fprintf (stderr,
                "%s.%s failed, mismatch starting at %zd\n"
                "--- Expect (%zu chars) ---\n%s\n"
                "--- Actual (%zu chars) ---\n%s\n",
-               test_name->str,
+               test_name,
                suffix,
                first_non_matching (expect, actual),
-               expect->len,
-               expect->str,
-               actual->len,
-               actual->str);
+               strlen (expect),
+               expect,
+               strlen (actual),
+               actual);
       abort ();
    }
 
-   kms_request_str_destroy (test_name);
-   kms_request_str_destroy (actual);
+   free (actual);
    free (expect);
 }
 
 void
-aws_sig_v4_test (kms_request_str_t *dir_path)
+aws_sig_v4_test (const char *dir_path)
 {
    kms_request_t *request;
 
@@ -259,63 +265,53 @@ aws_sig_v4_test (kms_request_str_t *dir_path)
 }
 
 bool
-spec_tests (kms_request_str_t *path, kms_request_str_t *selected)
+spec_tests (const char *path, const char *selected)
 {
    /* Amazon supplies tests, one per directory, 5 files per test, see
     * docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html */
    DIR *dp;
    struct dirent *ent;
    bool ran_tests = false;
-   kms_request_str_t *test_name = last_segment (path);
-   kms_request_str_t *ent_name = NULL;
-   kms_request_str_t *sub = NULL;
-   kms_request_str_t *dotreq = kms_request_str_new_from_chars (".req", -1);
+   const char *test_name = last_segment (path);
+   char sub[PATH_MAX];
 
-   dp = opendir (path->str);
+   dp = opendir (path);
    if (!dp) {
-      perror (path->str);
+      perror (path);
       abort ();
    }
 
    if (skip_aws_test (test_name) && !selected) {
-      printf ("SKIP: %s\n", test_name->str);
+      printf ("SKIP: %s\n", test_name);
       goto done;
    }
 
    while ((ent = readdir (dp))) {
-      kms_request_str_destroy (ent_name);
-      ent_name = kms_request_str_new_from_chars (ent->d_name, ent->d_namlen);
       if (ent->d_name[0] == '.') {
          continue;
       }
 
       if (ent->d_type & DT_DIR) {
-         sub = kms_request_str_dup (path);
-         kms_request_str_append_char (sub, '/');
-         kms_request_str_append (sub, ent_name);
+         snprintf (sub, PATH_MAX, "%s/%s", path, ent->d_name);
          ran_tests |= spec_tests (sub, selected);
-         kms_request_str_destroy (sub);
       }
 
-      if (!(ent->d_type & DT_REG) ||
-          !kms_request_str_ends_with (ent_name, dotreq)) {
+      if (!(ent->d_type & DT_REG) || !ends_with (ent->d_name, ".req")) {
          continue;
       }
 
       /* "ent" is a "test.req" request file, this is a test directory */
       /* skip the test if it doesn't match the name passed to us */
-      if (selected && 0 != strcmp (test_name->str, selected->str)) {
+      if (selected && 0 != strcmp (test_name, selected)) {
          continue;
       }
 
-      printf ("%s\n", path->str);
+      printf ("%s\n", path);
       aws_sig_v4_test (path);
       ran_tests = true;
    }
 
 done:
-   kms_request_str_destroy (test_name);
-   kms_request_str_destroy (ent_name);
    (void) closedir (dp);
 
    return ran_tests;
@@ -327,38 +323,32 @@ example_signature_test (void)
 {
    const char *expect =
       "c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9";
-   kms_request_str_t *method = kms_request_str_new_from_chars ("GET", -1);
-   kms_request_str_t *uri_path = kms_request_str_new_from_chars ("uri", -1);
    kms_request_t *request;
    unsigned char signing[32];
-   kms_request_str_t *sig;
+   char *sig;
 
-   request = kms_request_new (method, uri_path);
-   kms_request_add_header_field_from_chars (
-      request, "X-Amz-Date", "20150830T123600Z");
+   request = kms_request_new ("GET", "uri");
+   kms_request_add_header_field (request, "X-Amz-Date", "20150830T123600Z");
    kms_request_set_region (request, "us-east-1");
    kms_request_set_service (request, "iam");
    kms_request_set_secret_key (request,
                                "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
 
    assert (kms_request_get_signing_key (request, signing));
-   sig = kms_request_str_new ();
-   kms_request_str_append_hex (sig, signing, sizeof (signing));
-   if (strlen (expect) != sig->len ||
-       0 != memcmp (expect, sig->str, sig->len)) {
+   sig = hexlify (signing, 32);
+   if (strlen (expect) != strlen (sig) ||
+       0 != memcmp (expect, sig, strlen (sig))) {
       fprintf (stderr,
                "%s failed\n"
                "--- Expect ---\n%s\n"
                "--- Actual ---\n%s\n",
                __FUNCTION__,
                expect,
-               sig->str);
+               sig);
       abort ();
    }
 
-   kms_request_str_destroy (method);
-   kms_request_str_destroy (uri_path);
-   kms_request_str_destroy (sig);
+   free (sig);
    kms_request_destroy (request);
 }
 
@@ -402,40 +392,40 @@ path_normalization_test (void)
    };
 
    const char **test;
+   const char *out;
    size_t i;
-   kms_request_str_t *in, *out, *norm;
+   kms_request_str_t *in, *norm;
 
    for (i = 0; i < sizeof (tests) / (2 * sizeof (const char *)); i++) {
       test = tests[i];
       in = kms_request_str_new_from_chars (test[0], -1);
-      out = kms_request_str_new_from_chars (test[1], -1);
+      out = test[1];
       norm = kms_request_str_path_normalized (in);
-      if (0 != strcmp (out->str, norm->str)) {
+      if (0 != strcmp (out, norm->str)) {
          fprintf (stderr,
                   "Path normalization test failed:\n"
                   "Input:  %s\n"
                   "Expect: %s\n"
                   "Actual: %s\n",
                   in->str,
-                  out->str,
+                  out,
                   norm->str);
          abort ();
       }
 
       kms_request_str_destroy (in);
-      kms_request_str_destroy (out);
       kms_request_str_destroy (norm);
    }
 }
 
 
-#define RUN_TEST(_func)                                           \
-   do {                                                           \
-      if (!selector || 0 == strcasecmp (#_func, selector->str)) { \
-         printf ("%s\n", #_func);                                 \
-         _func ();                                                \
-         ran_tests = true;                                        \
-      }                                                           \
+#define RUN_TEST(_func)                                      \
+   do {                                                      \
+      if (!selector || 0 == strcasecmp (#_func, selector)) { \
+         printf ("%s\n", #_func);                            \
+         _func ();                                           \
+         ran_tests = true;                                   \
+      }                                                      \
    } while (0)
 
 
@@ -444,8 +434,8 @@ int
 main (int argc, char *argv[])
 {
    const char *help;
-   kms_request_str_t *dir_path = NULL;
-   kms_request_str_t *selector = NULL;
+   char *dir_path = NULL;
+   char *selector = NULL;
    bool ran_tests = false;
 
    help = "Usage: test_kms_request [TEST_NAME]";
@@ -454,14 +444,13 @@ main (int argc, char *argv[])
       fprintf (stderr, "%s\n", help);
       abort ();
    } else if (argc == 2) {
-      selector = kms_request_str_new_from_chars (argv[1], -1);
+      selector = argv[1];
    }
 
    RUN_TEST (example_signature_test);
    RUN_TEST (path_normalization_test);
 
-   dir_path = kms_request_str_new_from_chars (aws_test_suite_dir, -1);
-   ran_tests |= spec_tests (dir_path, selector);
+   ran_tests |= spec_tests (aws_test_suite_dir, selector);
 
    if (!ran_tests) {
       assert (argc == 2);
@@ -469,6 +458,5 @@ main (int argc, char *argv[])
       abort ();
    }
 
-   kms_request_str_destroy (selector);
-   kms_request_str_destroy (dir_path);
+   free (selector);
 }

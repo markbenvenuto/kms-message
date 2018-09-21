@@ -39,7 +39,6 @@
 
 #define KMS_MSG_EXPORT(type) KMS_MSG_API type KMS_MSG_CALL
 
-#include "kms_request_str.h"
 #include "kms_request.h"
 
 #endif /* KMS_MESSAGE_H */

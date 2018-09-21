@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-#include "kms_message/kms_message.h"
-#include "kms_private.h"
 #include "kms_kv_list.h"
+#include "kms_message/kms_message.h"
+#include "kms_request_str.h"
 
 static void
 kv_init (kms_kv_t *kv, kms_request_str_t *key, kms_request_str_t *value)

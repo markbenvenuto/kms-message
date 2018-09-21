@@ -22,9 +22,9 @@ add_library (
    src/kms_kv_list.h
    src/kms_message/kms_message.h
    src/kms_message/kms_request.h
-   src/kms_message/kms_request_str.h
    src/kms_request.c
    src/kms_request_str.c
+   src/kms_request_str.h
 )
 
 include (FindOpenSSL)
@@ -55,7 +55,6 @@ install (TARGETS kms_message
 install (
    FILES
    src/kms_message/kms_message.h
-   src/kms_message/kms_request_str.h
    src/kms_message/kms_request.h
    DESTINATION include/kms_message
    COMPONENT Devel
@@ -108,6 +107,7 @@ install (
 
 add_executable (
    test_kms_request
+   src/hexlify.c
    test/test_kms_request.c
 )
 

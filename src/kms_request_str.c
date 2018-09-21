@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#include "kms_message/kms_message.h"
+#include "hexlify.h"
 #include "kms_crypto.h"
-#include "kms_private.h"
+#include "kms_message/kms_message.h"
+#include "kms_request_str.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -96,17 +97,24 @@ kms_request_str_new_from_chars (const char *chars, ssize_t len)
    kms_request_str_t *s = malloc (sizeof (kms_request_str_t));
    size_t actual_len;
 
-   if (len >= 0) {
-      actual_len = (size_t) len;
-   } else {
-      actual_len = strlen (chars);
-   }
-
+   actual_len = len < 0 ? strlen (chars) : (size_t) len;
    s->size = actual_len + 1;
    s->str = malloc (s->size);
    memcpy (s->str, chars, actual_len);
    s->str[actual_len] = '\0';
    s->len = actual_len;
+
+   return s;
+}
+
+kms_request_str_t *
+kms_request_str_wrap (char *chars, ssize_t len)
+{
+   kms_request_str_t *s = malloc (sizeof (kms_request_str_t));
+
+   s->str = chars;
+   s->len = len < 0 ? strlen (chars) : (size_t) len;
+   s->size = s->len;
 
    return s;
 }
@@ -120,6 +128,14 @@ kms_request_str_destroy (kms_request_str_t *str)
 
    free (str->str);
    free (str);
+}
+
+char *
+kms_request_str_detach (kms_request_str_t *str)
+{
+   char *r = str->str;
+   free (str);
+   return r;
 }
 
 bool

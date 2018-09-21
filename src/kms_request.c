@@ -18,7 +18,7 @@
 #include "kms_crypto.h"
 #include "kms_kv_list.h"
 #include "kms_message/kms_message.h"
-#include "kms_private.h"
+#include "kms_request_str.h"
 
 #include <assert.h>
 #include <openssl/evp.h>
@@ -79,7 +79,7 @@ parse_query_params (kms_request_str_t *q)
 }
 
 kms_request_t *
-kms_request_new (kms_request_str_t *method, kms_request_str_t *path_and_query)
+kms_request_new (const char *method, const char *path_and_query)
 {
    const char *question_mark;
    kms_request_t *request = calloc (sizeof (kms_request_t), 1);
@@ -89,14 +89,14 @@ kms_request_new (kms_request_str_t *method, kms_request_str_t *path_and_query)
    request->access_key_id = kms_request_str_new ();
    request->secret_key = kms_request_str_new ();
 
-   question_mark = strchr (path_and_query->str, '?');
+   question_mark = strchr (path_and_query, '?');
    if (question_mark) {
       request->path = kms_request_str_new_from_chars (
-         path_and_query->str, question_mark - path_and_query->str);
+         path_and_query, question_mark - path_and_query);
       request->query = kms_request_str_new_from_chars (question_mark + 1, -1);
       request->query_params = parse_query_params (request->query);
    } else {
-      request->path = kms_request_str_dup (path_and_query);
+      request->path = kms_request_str_new_from_chars (path_and_query, -1);
       request->query = kms_request_str_new ();
       request->query_params = kms_kv_list_new ();
    }
@@ -105,7 +105,7 @@ kms_request_new (kms_request_str_t *method, kms_request_str_t *path_and_query)
    request->payload = kms_request_str_new ();
    request->datetime = kms_request_str_new ();
    request->date = kms_request_str_new ();
-   request->method = kms_request_str_dup (method);
+   request->method = kms_request_str_new_from_chars (method, -1);
    request->header_fields = kms_kv_list_new ();
 
    return request;
@@ -164,9 +164,9 @@ kms_request_set_secret_key (kms_request_t *request, const char *key)
 }
 
 bool
-kms_request_add_header_field_from_chars (kms_request_t *request,
-                                         const char *field_name,
-                                         const char *value)
+kms_request_add_header_field (kms_request_t *request,
+                              const char *field_name,
+                              const char *value)
 {
    kms_request_str_t *k, *v;
    char *t;
@@ -198,9 +198,9 @@ kms_request_add_header_field_from_chars (kms_request_t *request,
 }
 
 bool
-kms_request_append_header_field_value_from_chars (kms_request_t *request,
-                                                  const char *value,
-                                                  size_t len)
+kms_request_append_header_field_value (kms_request_t *request,
+                                       const char *value,
+                                       size_t len)
 {
    kms_request_str_t *v;
 
@@ -218,9 +218,9 @@ kms_request_append_header_field_value_from_chars (kms_request_t *request,
 }
 
 bool
-kms_request_append_payload_from_chars (kms_request_t *request,
-                                       const char *payload,
-                                       size_t len)
+kms_request_append_payload (kms_request_t *request,
+                            const char *payload,
+                            size_t len)
 {
    CHECK_FAILED;
 
@@ -340,7 +340,7 @@ cmp_header_field_names (const void *a, const void *b)
    return strcasecmp (((kms_kv_t *) a)->key->str, ((kms_kv_t *) b)->key->str);
 }
 
-kms_request_str_t *
+char *
 kms_request_get_canonical (kms_request_t *request)
 {
    kms_request_str_t *canonical;
@@ -372,10 +372,10 @@ kms_request_get_canonical (kms_request_t *request)
    kms_request_str_destroy (normalized);
    kms_kv_list_destroy (lst);
 
-   return canonical;
+   return kms_request_str_detach (canonical);
 }
 
-kms_request_str_t *
+char *
 kms_request_get_string_to_sign (kms_request_t *request)
 {
    bool success = false;
@@ -399,7 +399,7 @@ kms_request_get_string_to_sign (kms_request_t *request)
    kms_request_str_append (sts, request->service);
    kms_request_str_append_chars (sts, "/aws4_request\n", -1);
 
-   creq = kms_request_get_canonical (request);
+   creq = kms_request_str_wrap (kms_request_get_canonical (request), -1);
    if (!kms_request_str_append_hashed (sts, creq)) {
       goto done;
    }
@@ -412,7 +412,7 @@ done:
       sts = NULL;
    }
 
-   return sts;
+   return kms_request_str_detach (sts);
 }
 
 static bool
@@ -482,7 +482,7 @@ done:
    return success;
 }
 
-kms_request_str_t *
+char *
 kms_request_get_signature (kms_request_t *request)
 {
    bool success = false;
@@ -496,7 +496,7 @@ kms_request_get_signature (kms_request_t *request)
       return NULL;
    }
 
-   sts = kms_request_get_string_to_sign (request);
+   sts = kms_request_str_wrap (kms_request_get_string_to_sign (request), -1);
    if (!sts) {
       goto done;
    }
@@ -530,10 +530,10 @@ done:
       sig = NULL;
    }
 
-   return sig;
+   return kms_request_str_detach (sig);
 }
 
-kms_request_str_t *
+char *
 kms_request_get_signed (kms_request_t *request)
 {
    bool success = false;
@@ -569,7 +569,7 @@ kms_request_get_signed (kms_request_t *request)
    }
 
    /* authorization header */
-   signature = kms_request_get_signature (request);
+   signature = kms_request_str_wrap (kms_request_get_signature (request), -1);
    if (!signature) {
       goto done;
    }
@@ -594,5 +594,5 @@ done:
       sreq = NULL;
    }
 
-   return sreq;
+   return kms_request_str_detach (sreq);
 }

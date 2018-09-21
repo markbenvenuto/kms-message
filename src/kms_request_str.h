@@ -17,7 +17,7 @@
 #ifndef KMS_MESSAGE_KMS_REQUEST_STR_H
 #define KMS_MESSAGE_KMS_REQUEST_STR_H
 
-#include "kms_message.h"
+#include "kms_message/kms_message.h"
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -34,8 +34,12 @@ KMS_MSG_EXPORT (kms_request_str_t *)
 kms_request_str_new (void);
 KMS_MSG_EXPORT (kms_request_str_t *)
 kms_request_str_new_from_chars (const char *chars, ssize_t len);
+KMS_MSG_EXPORT (kms_request_str_t *)
+kms_request_str_wrap (char *chars, ssize_t len);
 KMS_MSG_EXPORT (void)
 kms_request_str_destroy (kms_request_str_t *str);
+KMS_MSG_EXPORT (char *)
+kms_request_str_detach (kms_request_str_t *str);
 KMS_MSG_EXPORT (bool)
 kms_request_str_reserve (kms_request_str_t *str, size_t size);
 KMS_MSG_EXPORT (kms_request_str_t *)
