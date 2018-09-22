@@ -16,9 +16,8 @@
  */
 
 #include "kms_crypto.h"
-#include "kms_kv_list.h"
 #include "kms_message/kms_message.h"
-#include "kms_request_str.h"
+#include "kms_message_private.h"
 
 #include <assert.h>
 #include <openssl/evp.h>
@@ -30,24 +29,6 @@
          return false;       \
       }                      \
    } while (0)
-
-struct _kms_request_t {
-   char error[512];
-   bool failed;
-   kms_request_str_t *region;
-   kms_request_str_t *service;
-   kms_request_str_t *access_key_id;
-   kms_request_str_t *secret_key;
-   kms_request_str_t *method;
-   kms_request_str_t *path;
-   kms_request_str_t *query;
-   kms_request_str_t *payload;
-   kms_request_str_t *datetime;
-   kms_request_str_t *date;
-   kms_kv_list_t *query_params;
-   kms_kv_list_t *header_fields;
-};
-
 
 static kms_kv_list_t *
 parse_query_params (kms_request_str_t *q)
@@ -107,6 +88,7 @@ kms_request_new (const char *method, const char *path_and_query)
    request->datetime = kms_request_str_new ();
    request->method = kms_request_str_new_from_chars (method, -1);
    request->header_fields = kms_kv_list_new ();
+   request->auto_content_length = true;
 
    kms_request_set_date (request, NULL);
 
@@ -360,20 +342,30 @@ static kms_kv_list_t *
 canonical_headers (const kms_request_t *request)
 {
    kms_kv_list_t *lst;
-   kms_request_str_t *k_host;
-   kms_request_str_t *v_host;
+   kms_request_str_t *k;
+   kms_request_str_t *v;
 
    lst = kms_kv_list_dup (request->header_fields);
    if (!kms_kv_list_find (lst, "Host")) {
       /* like "kms.us-east-1.amazonaws.com" */
-      k_host = kms_request_str_new_from_chars ("Host", -1);
-      v_host = kms_request_str_dup (request->service);
-      kms_request_str_append_char (v_host, '.');
-      kms_request_str_append (v_host, request->region);
-      kms_request_str_append_chars (v_host, ".amazonaws.com", -1);
-      kms_kv_list_add (lst, k_host, v_host);
-      kms_request_str_destroy (k_host);
-      kms_request_str_destroy (v_host);
+      k = kms_request_str_new_from_chars ("Host", -1);
+      v = kms_request_str_dup (request->service);
+      kms_request_str_append_char (v, '.');
+      kms_request_str_append (v, request->region);
+      kms_request_str_append_chars (v, ".amazonaws.com", -1);
+      kms_kv_list_add (lst, k, v);
+      kms_request_str_destroy (k);
+      kms_request_str_destroy (v);
+   }
+
+   if (!kms_kv_list_find (lst, "Content-Length") && request->payload->len &&
+       request->auto_content_length) {
+      k = kms_request_str_new_from_chars ("Content-Length", -1);
+      v = kms_request_str_new ();
+      kms_request_str_appendf (v, "%zu", request->payload->len);
+      kms_kv_list_add (lst, k, v);
+      kms_request_str_destroy (k);
+      kms_request_str_destroy (v);
    }
 
    kms_kv_list_sort (lst, cmp_header_field_names);

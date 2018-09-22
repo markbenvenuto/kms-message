@@ -15,6 +15,7 @@
  */
 
 #include "src/kms_message/kms_message.h"
+#include "src/kms_message_private.h"
 
 #include <assert.h>
 #include <dirent.h>
@@ -169,6 +170,7 @@ read_req (const char *path)
                        line_len - strlen (method) - 1 - strlen (" HTTP/1.1\n"));
 
    request = kms_request_new (method, uri_path);
+   request->auto_content_length = false;
    /* from docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html */
    kms_request_set_region (request, "us-east-1");
    kms_request_set_service (request, "service");
@@ -210,7 +212,7 @@ read_req (const char *path)
    return request;
 }
 
-static ssize_t
+ssize_t
 first_non_matching (const char *x, const char *y)
 {
    size_t len = strlen (x) > strlen (y) ? strlen (x) : strlen (y);
@@ -234,6 +236,23 @@ first_non_matching (const char *x, const char *y)
    return -1;
 }
 
+void compare_strs (const char *test_name, const char *expect, const char *actual) {
+   if (0 != strcmp (actual, expect)) {
+      fprintf (stderr,
+               "%s failed, mismatch starting at %zd\n"
+               "--- Expect (%zu chars) ---\n%s\n"
+               "--- Actual (%zu chars) ---\n%s\n",
+               test_name,
+               first_non_matching (expect, actual),
+               strlen (expect),
+               expect,
+               strlen (actual),
+               actual);
+
+      abort ();
+   }
+}
+
 void
 aws_sig_v4_test_compare (kms_request_t *request,
                          char *(*func) (kms_request_t *),
@@ -247,23 +266,7 @@ aws_sig_v4_test_compare (kms_request_t *request,
    /* canonical request */
    expect = read_aws_test (dir_path, suffix);
    actual = func (request);
-
-   if (strlen (expect) != strlen (actual) ||
-       0 != memcmp (expect, actual, strlen (actual))) {
-      fprintf (stderr,
-               "%s.%s failed, mismatch starting at %zd\n"
-               "--- Expect (%zu chars) ---\n%s\n"
-               "--- Actual (%zu chars) ---\n%s\n",
-               test_name,
-               suffix,
-               first_non_matching (expect, actual),
-               strlen (expect),
-               expect,
-               strlen (actual),
-               actual);
-      abort ();
-   }
-
+   compare_strs (test_name, expect, actual);
    free (actual);
    free (expect);
 }
@@ -356,18 +359,7 @@ example_signature_test (void)
 
    assert (kms_request_get_signing_key (request, signing));
    sig = hexlify (signing, 32);
-   if (strlen (expect) != strlen (sig) ||
-       0 != memcmp (expect, sig, strlen (sig))) {
-      fprintf (stderr,
-               "%s failed\n"
-               "--- Expect ---\n%s\n"
-               "--- Actual ---\n%s\n",
-               __FUNCTION__,
-               expect,
-               sig);
-      abort ();
-   }
-
+   compare_strs (__FUNCTION__, expect, sig);
    free (sig);
    kms_request_destroy (request);
 }
@@ -421,54 +413,49 @@ path_normalization_test (void)
       in = kms_request_str_new_from_chars (test[0], -1);
       out = test[1];
       norm = kms_request_str_path_normalized (in);
-      if (0 != strcmp (out, norm->str)) {
-         fprintf (stderr,
-                  "Path normalization test failed:\n"
-                  "Input:  %s\n"
-                  "Expect: %s\n"
-                  "Actual: %s\n",
-                  in->str,
-                  out,
-                  norm->str);
-         abort ();
-      }
-
+      compare_strs (__FUNCTION__, out, norm->str);
       kms_request_str_destroy (in);
       kms_request_str_destroy (norm);
    }
 }
 
-static void
-host_test (void)
-{
-   char *actual, *expect;
+kms_request_t *
+make_test_request (void) {
    kms_request_t *request = kms_request_new ("POST", "/");
 
    kms_request_set_region (request, "foo-region");
    kms_request_set_service (request, "foo-service");
-   kms_request_set_access_key_id (request, "AKIDEXAMPLE");
-   kms_request_set_secret_key (request,
-                               "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
-
+   kms_request_set_access_key_id (request, "foo-akid");
+   kms_request_set_secret_key (request, "foo-key");
    set_test_date (request);
+
+   return request;
+}
+
+void
+host_test (void)
+{
+   char *actual, *expect;
+   kms_request_t *request = make_test_request ();
    actual = kms_request_get_signed (request);
    expect = read_test ("test/host_test.sreq");
+   compare_strs (__FUNCTION__, expect, actual);
+   free (expect);
+   free (actual);
+   kms_request_destroy (request);
+}
 
-   if (0 != strcmp (actual, expect)) {
-      fprintf (stderr,
-               "%s failed, mismatch starting at %zd\n"
-               "--- Expect (%zu chars) ---\n%s\n"
-               "--- Actual (%zu chars) ---\n%s\n",
-               __FUNCTION__,
-               first_non_matching (expect, actual),
-               strlen (expect),
-               expect,
-               strlen (actual),
-               actual);
-
-      abort ();
-   }
-
+void
+content_length_test (void)
+{
+   const char *payload = "foo-payload";
+   char *actual, *expect;
+   kms_request_t *request = make_test_request ();
+   kms_request_append_payload (request, payload, strlen (payload));
+   actual = kms_request_get_signed (request);
+   printf ("%s\n", actual);
+   expect = read_test ("test/content_length_test.sreq");
+   compare_strs (__FUNCTION__, expect, actual);
    free (expect);
    free (actual);
    kms_request_destroy (request);
@@ -505,6 +492,7 @@ main (int argc, char *argv[])
    RUN_TEST (example_signature_test);
    RUN_TEST (path_normalization_test);
    RUN_TEST (host_test);
+   RUN_TEST (content_length_test);
 
    ran_tests |= spec_tests (aws_test_suite_dir, selector);
 
