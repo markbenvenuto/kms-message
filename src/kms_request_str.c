@@ -274,6 +274,7 @@ kms_request_str_appendf (kms_request_str_t *str, const char *format, ...)
 
       if (n > -1 && n < remaining) {
          /* success */
+         str->len += (size_t) n;
          return;
       }
 
