@@ -534,6 +534,43 @@ set_date_test (void)
    kms_request_destroy (request);
 }
 
+void
+multibyte_test (void)
+{
+/* euro currency symbol */
+#define EU "\xe2\x82\xac"
+
+   char *actual, *expect;
+   kms_request_t *request = kms_request_new ("GET", "/" EU "/?euro=" EU);
+
+   set_test_date (request);
+   assert (kms_request_set_region (request, EU));
+   assert (kms_request_set_service (request, EU));
+   kms_request_set_access_key_id (request, "AKIDEXAMPLE");
+   kms_request_set_secret_key (request,
+                               "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
+
+   assert (kms_request_add_header_field (request, EU, EU));
+   assert (kms_request_append_header_field_value (request, "asdf" EU, 7));
+   assert (kms_request_append_payload (request, EU, sizeof (EU)));
+   /* header field 0 is "X-Amz-Date" */
+   ASSERT_CMPSTR (request->header_fields->kvs[1].value->str, EU "asdf" EU);
+
+   expect = read_test ("test/multibyte.creq");
+   actual = kms_request_get_canonical (request);
+   compare_strs (__FUNCTION__, expect, actual);
+   free (expect);
+   free (actual);
+
+   expect = read_test ("test/multibyte.sreq");
+   actual = kms_request_get_signed (request);
+   compare_strs (__FUNCTION__, expect, actual);
+
+   free (expect);
+   free (actual);
+   kms_request_destroy (request);
+}
+
 #define RUN_TEST(_func)                                      \
    do {                                                      \
       if (!selector || 0 == strcasecmp (#_func, selector)) { \
@@ -543,8 +580,6 @@ set_date_test (void)
       }                                                      \
    } while (0)
 
-
-/* TODO: test multibyte UTF-8 */
 int
 main (int argc, char *argv[])
 {
@@ -569,6 +604,7 @@ main (int argc, char *argv[])
    RUN_TEST (bad_query_test);
    RUN_TEST (append_header_field_value_test);
    RUN_TEST (set_date_test);
+   RUN_TEST (multibyte_test);
 
    ran_tests |= spec_tests (aws_test_suite_dir, selector);
 
