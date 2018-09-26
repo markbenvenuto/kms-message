@@ -483,7 +483,6 @@ content_length_test (void)
    kms_request_t *request = make_test_request ();
    kms_request_append_payload (request, payload, strlen (payload));
    actual = kms_request_get_signed (request);
-   printf ("%s\n", actual);
    expect = read_test ("test/content_length_test.sreq");
    compare_strs (__FUNCTION__, expect, actual);
    free (expect);
