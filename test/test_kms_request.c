@@ -27,6 +27,45 @@
 #include <sys/stat.h>
 #include <src/hexlify.h>
 #include <src/kms_request_str.h>
+#include <src/kms_kv_list.h>
+
+#define ASSERT_CMPSTR(_a, _b)                               \
+   do {                                                     \
+      if (0 != strcmp ((_a), (_b))) {                       \
+         fprintf (stderr,                                   \
+                  "%s:%d %s(): [%s] does not equal [%s]\n", \
+                  __FILE__,                                 \
+                  __LINE__,                                 \
+                  __FUNCTION__,                             \
+                  _a,                                       \
+                  _b);                                      \
+         abort ();                                          \
+      }                                                     \
+   } while (0)
+
+#define ASSERT_CONTAINS(_a, _b)                                              \
+   do {                                                                      \
+      kms_request_str_t *_a_str = kms_request_str_new_from_chars ((_a), -1); \
+      kms_request_str_t *_b_str = kms_request_str_new_from_chars ((_b), -1); \
+      kms_request_str_t *_a_lower = kms_request_str_new ();                  \
+      kms_request_str_t *_b_lower = kms_request_str_new ();                  \
+      kms_request_str_append_lowercase (_a_lower, (_a_str));                 \
+      kms_request_str_append_lowercase (_b_lower, (_b_str));                 \
+      if (NULL == strstr ((_a_lower->str), (_b_lower->str))) {               \
+         fprintf (stderr,                                                    \
+                  "%s:%d %s(): [%s] does not contain [%s]\n",                \
+                  __FILE__,                                                  \
+                  __LINE__,                                                  \
+                  __FUNCTION__,                                              \
+                  _a,                                                        \
+                  _b);                                                       \
+         abort ();                                                           \
+      }                                                                      \
+      kms_request_str_destroy (_a_str);                                      \
+      kms_request_str_destroy (_b_str);                                      \
+      kms_request_str_destroy (_a_lower);                                    \
+      kms_request_str_destroy (_b_lower);                                    \
+   } while (0)
 
 const char *aws_test_suite_dir = "aws-sig-v4-test-suite";
 
@@ -236,7 +275,9 @@ first_non_matching (const char *x, const char *y)
    return -1;
 }
 
-void compare_strs (const char *test_name, const char *expect, const char *actual) {
+void
+compare_strs (const char *test_name, const char *expect, const char *actual)
+{
    if (0 != strcmp (actual, expect)) {
       fprintf (stderr,
                "%s failed, mismatch starting at %zd\n"
@@ -420,7 +461,8 @@ path_normalization_test (void)
 }
 
 kms_request_t *
-make_test_request (void) {
+make_test_request (void)
+{
    kms_request_t *request = kms_request_new ("POST", "/");
 
    kms_request_set_region (request, "foo-region");
@@ -461,6 +503,37 @@ content_length_test (void)
    kms_request_destroy (request);
 }
 
+void
+bad_query_test (void)
+{
+   kms_request_t *request = kms_request_new ("GET", "/?asdf");
+   ASSERT_CONTAINS (kms_request_get_error (request), "Cannot parse");
+   kms_request_destroy (request);
+}
+
+void
+append_header_field_value_test (void)
+{
+   kms_request_t *request = kms_request_new ("GET", "/");
+   assert (kms_request_add_header_field (request, "a", "b"));
+   assert (kms_request_append_header_field_value (request, "asdf", 4));
+   /* header field 0 is "X-Amz-Date", field 1 is "a" */
+   ASSERT_CMPSTR (request->header_fields->kvs[1].value->str, "basdf");
+   kms_request_destroy (request);
+}
+
+void
+set_date_test (void)
+{
+   struct tm tm = {0};
+   kms_request_t *request = kms_request_new ("GET", "/");
+
+   tm.tm_sec = 9999; /* invalid, shouldn't be > 60 */
+   assert (!kms_request_set_date (request, &tm));
+   ASSERT_CONTAINS (kms_request_get_error (request), "Invalid tm struct");
+   kms_request_destroy (request);
+}
+
 #define RUN_TEST(_func)                                      \
    do {                                                      \
       if (!selector || 0 == strcasecmp (#_func, selector)) { \
@@ -493,6 +566,9 @@ main (int argc, char *argv[])
    RUN_TEST (path_normalization_test);
    RUN_TEST (host_test);
    RUN_TEST (content_length_test);
+   RUN_TEST (bad_query_test);
+   RUN_TEST (append_header_field_value_test);
+   RUN_TEST (set_date_test);
 
    ran_tests |= spec_tests (aws_test_suite_dir, selector);
 

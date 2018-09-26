@@ -30,6 +30,24 @@
       }                      \
    } while (0)
 
+static inline void
+set_error (kms_request_t *request, const char *fmt, ...)
+{
+   va_list va;
+
+   request->failed = true;
+
+   va_start (va, fmt);
+   (void) vsnprintf (request->error, sizeof (request->error), fmt, va);
+   va_end (va);
+}
+
+#define REQUEST_ERROR(...)              \
+   do {                                 \
+      set_error (request, __VA_ARGS__); \
+      return false;                     \
+   } while (0)
+
 static kms_kv_list_t *
 parse_query_params (kms_request_str_t *q)
 {
@@ -41,7 +59,10 @@ parse_query_params (kms_request_str_t *q)
 
    do {
       equals = strchr ((const char *) p, '=');
-      assert (equals);
+      if (!equals) {
+         kms_kv_list_destroy (lst);
+         return NULL;
+      }
       amp = strchr ((const char *) equals, '&');
       if (!amp) {
          amp = end;
@@ -65,6 +86,9 @@ kms_request_new (const char *method, const char *path_and_query)
    kms_request_t *request = calloc (sizeof (kms_request_t), 1);
    const char *question_mark;
 
+   /* parsing may set failed to true */
+   request->failed = false;
+
    request->region = kms_request_str_new ();
    request->service = kms_request_str_new ();
    request->access_key_id = kms_request_str_new ();
@@ -76,13 +100,15 @@ kms_request_new (const char *method, const char *path_and_query)
          path_and_query, question_mark - path_and_query);
       request->query = kms_request_str_new_from_chars (question_mark + 1, -1);
       request->query_params = parse_query_params (request->query);
+      if (!request->query_params) {
+         set_error (request, "Cannot parse query: %s", request->query->str);
+      }
    } else {
       request->path = kms_request_str_new_from_chars (path_and_query, -1);
       request->query = kms_request_str_new ();
       request->query_params = kms_kv_list_new ();
    }
 
-   request->failed = false;
    request->payload = kms_request_str_new ();
    request->date = kms_request_str_new ();
    request->datetime = kms_request_str_new ();
@@ -136,7 +162,7 @@ kms_request_set_date (kms_request_t *request, const struct tm *tm)
    }
 
    if (0 == strftime (buf, sizeof AMZ_DT_FORMAT, "%Y%m%dT%H%M%SZ", tm)) {
-      return false;
+      REQUEST_ERROR ("Invalid tm struct");
    }
 
    kms_request_str_set_chars (request->date, buf, sizeof "YYYYmmDD" - 1);
@@ -204,8 +230,9 @@ kms_request_append_header_field_value (kms_request_t *request,
    CHECK_FAILED;
 
    if (request->header_fields->len == 0) {
-      /* TODO: set error */
-      return false;
+      REQUEST_ERROR (
+         "Ensure the request has at least one header field before calling %s",
+         __FUNCTION__);
    }
 
    v = request->header_fields->kvs[request->header_fields->len - 1].value;
@@ -481,6 +508,10 @@ kms_request_get_signing_key (kms_request_t *request, unsigned char *key)
    unsigned char k_date[32];
    unsigned char k_region[32];
    unsigned char k_service[32];
+
+   if (request->failed) {
+      return NULL;
+   }
 
    /* docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html
     * Pseudocode for deriving a signing key
