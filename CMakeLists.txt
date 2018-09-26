@@ -1,9 +1,7 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.5)
 project (kms_message
-   LANGUAGES C
    VERSION 0.0.1
-   DESCRIPTION
-   "Library to parse and generate AWS Key Management Service (KMS) messages"
+   LANGUAGES C
 )
 
 set (CMAKE_C_STANDARD 90)
