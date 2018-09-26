@@ -558,6 +558,33 @@ multibyte_test (void)
    kms_request_destroy (request);
 }
 
+void
+kv_list_del_test (void)
+{
+   kms_kv_list_t *lst = kms_kv_list_new ();
+   kms_request_str_t *k = kms_request_str_new_from_chars ("one", -1);
+   kms_request_str_t *v = kms_request_str_new_from_chars ("v", -1);
+   kms_kv_list_add (lst, k, v);
+   kms_request_str_set_chars (k, "two", -1);
+   kms_kv_list_add (lst, k, v);
+   kms_request_str_set_chars (k, "three", -1);
+   kms_kv_list_add (lst, k, v);
+   kms_request_str_set_chars (k, "two", -1); /* dupe */
+   kms_kv_list_add (lst, k, v);
+   kms_request_str_set_chars (k, "four", -1);
+   kms_kv_list_add (lst, k, v);
+   assert (lst->len == 5);
+   kms_kv_list_del (lst, "two"); /* delete both "two" keys */
+   assert (lst->len == 3);
+   ASSERT_CMPSTR (lst->kvs[0].key->str, "one");
+   ASSERT_CMPSTR (lst->kvs[1].key->str, "three");
+   ASSERT_CMPSTR (lst->kvs[2].key->str, "four");
+
+   kms_request_str_destroy (k);
+   kms_request_str_destroy (v);
+   kms_kv_list_destroy (lst);
+}
+
 #define RUN_TEST(_func)                                      \
    do {                                                      \
       if (!selector || 0 == strcasecmp (#_func, selector)) { \
@@ -592,6 +619,7 @@ main (int argc, char *argv[])
    RUN_TEST (append_header_field_value_test);
    RUN_TEST (set_date_test);
    RUN_TEST (multibyte_test);
+   RUN_TEST (kv_list_del_test);
 
    ran_tests |= spec_tests (aws_test_suite_dir, selector);
 

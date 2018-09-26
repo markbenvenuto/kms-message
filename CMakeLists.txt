@@ -108,6 +108,7 @@ install (
 add_executable (
    test_kms_request
    src/hexlify.c
+   src/kms_kv_list.c
    test/test_kms_request.c
 )
 

@@ -90,7 +90,6 @@ kms_kv_list_find (const kms_kv_list_t *lst, const char *key)
    return NULL;
 }
 
-/* TODO: unittest this */
 void
 kms_kv_list_del (kms_kv_list_t *lst, const char *key)
 {
