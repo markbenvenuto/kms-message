@@ -29,20 +29,6 @@
 #include <src/kms_request_str.h>
 #include <src/kms_kv_list.h>
 
-#define ASSERT_CMPSTR(_a, _b)                               \
-   do {                                                     \
-      if (0 != strcmp ((_a), (_b))) {                       \
-         fprintf (stderr,                                   \
-                  "%s:%d %s(): [%s] does not equal [%s]\n", \
-                  __FILE__,                                 \
-                  __LINE__,                                 \
-                  __FUNCTION__,                             \
-                  _a,                                       \
-                  _b);                                      \
-         abort ();                                          \
-      }                                                     \
-   } while (0)
-
 #define ASSERT_CONTAINS(_a, _b)                                              \
    do {                                                                      \
       kms_request_str_t *_a_str = kms_request_str_new_from_chars ((_a), -1); \
@@ -293,6 +279,8 @@ compare_strs (const char *test_name, const char *expect, const char *actual)
       abort ();
    }
 }
+
+#define ASSERT_CMPSTR(_a, _b) compare_strs (__FUNCTION__, (_a), (_b))
 
 void
 aws_sig_v4_test_compare (kms_request_t *request,
