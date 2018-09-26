@@ -130,6 +130,5 @@ kms_kv_list_dup (const kms_kv_list_t *lst)
 void
 kms_kv_list_sort (kms_kv_list_t *lst, int (*cmp) (const void *, const void *))
 {
-   /* choose a stable sorting algorithm */
-   (void) mergesort (lst->kvs, lst->len, sizeof (kms_kv_t), cmp);
+   (void) qsort (lst->kvs, lst->len, sizeof (kms_kv_t), cmp);
 }
