@@ -216,6 +216,7 @@ kms_request_add_header_field (kms_request_t *request,
    v = kms_request_str_new_from_chars (value, -1);
    kms_kv_list_add (request->header_fields, k, v);
    kms_request_str_destroy (k);
+   kms_request_str_destroy (v);
 
    return true;
 }
@@ -293,6 +294,8 @@ append_canonical_query (kms_request_t *request, kms_request_str_t *str)
          kms_request_str_append_char (str, '&');
       }
    }
+
+   kms_kv_list_destroy (lst);
 }
 
 /* "lst" is a sorted list of headers */

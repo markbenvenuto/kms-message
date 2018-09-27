@@ -89,7 +89,7 @@ ends_with (const char *str, const char *suffix)
 }
 
 
-const char *
+char *
 last_segment (const char *str)
 {
    const char *p = str + strlen (str);
@@ -139,10 +139,11 @@ char *
 aws_test_file_path (const char *path, const char *suffix)
 {
    char *r;
-   const char *test_name = last_segment (path);
+   char *test_name = last_segment (path);
    char file_path[PATH_MAX];
    snprintf (file_path, PATH_MAX, "%s/%s.%s", path, test_name, suffix);
    r = strdup (file_path);
+   free (test_name);
    return r;
 }
 
@@ -231,6 +232,9 @@ read_req (const char *path)
 
    fclose (f);
    free (file_path);
+   free (line);
+   free (uri_path);
+   free (method);
 
    set_test_date (request);
 
@@ -288,7 +292,7 @@ aws_sig_v4_test_compare (kms_request_t *request,
                          const char *dir_path,
                          const char *suffix)
 {
-   const char *test_name = last_segment (dir_path);
+   char *test_name = last_segment (dir_path);
    char *expect;
    char *actual;
 
@@ -298,6 +302,7 @@ aws_sig_v4_test_compare (kms_request_t *request,
    compare_strs (test_name, expect, actual);
    free (actual);
    free (expect);
+   free (test_name);
 }
 
 void
@@ -324,7 +329,7 @@ spec_tests (const char *path, const char *selected)
    DIR *dp;
    struct dirent *ent;
    bool ran_tests = false;
-   const char *test_name = last_segment (path);
+   char *test_name = last_segment (path);
    char sub[PATH_MAX];
 
    dp = opendir (path);
@@ -365,6 +370,7 @@ spec_tests (const char *path, const char *selected)
 
 done:
    (void) closedir (dp);
+   free (test_name);
 
    return ran_tests;
 }

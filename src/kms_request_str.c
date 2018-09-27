@@ -445,8 +445,7 @@ kms_request_str_path_normalized (kms_request_str_t *str)
    bool is_absolute = (*p == '/');
 
    if (0 == strcmp (p, "/")) {
-      kms_request_str_append_char (out, '/');
-      return out;
+      goto done;
    }
 
    while (p < end) {
@@ -506,6 +505,7 @@ kms_request_str_path_normalized (kms_request_str_t *str)
       }
    }
 
+done:
    free (in);
    kms_request_str_destroy (slash);
 
