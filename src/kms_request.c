@@ -23,31 +23,6 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 
-#define CHECK_FAILED         \
-   do {                      \
-      if (request->failed) { \
-         return false;       \
-      }                      \
-   } while (0)
-
-static inline void
-set_error (kms_request_t *request, const char *fmt, ...)
-{
-   va_list va;
-
-   request->failed = true;
-
-   va_start (va, fmt);
-   (void) vsnprintf (request->error, sizeof (request->error), fmt, va);
-   va_end (va);
-}
-
-#define REQUEST_ERROR(...)              \
-   do {                                 \
-      set_error (request, __VA_ARGS__); \
-      return false;                     \
-   } while (0)
-
 static kms_kv_list_t *
 parse_query_params (kms_request_str_t *q)
 {

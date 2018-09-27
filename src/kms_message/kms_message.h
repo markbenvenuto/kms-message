@@ -39,6 +39,12 @@
 
 #define KMS_MSG_EXPORT(type) KMS_MSG_API type KMS_MSG_CALL
 
+KMS_MSG_EXPORT (void)
+kms_message_init (void);
+KMS_MSG_EXPORT (void)
+kms_message_cleanup (void);
+
 #include "kms_request.h"
+#include "kms_encrypt_request.h"
 
 #endif /* KMS_MESSAGE_H */

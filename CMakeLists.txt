@@ -12,14 +12,19 @@ cmake_policy (SET CMP0063 NEW)
 set (CMAKE_C_VISIBILITY_PRESET hidden)
 add_library (
    kms_message SHARED
+   src/b64.c
+   src/b64.h
    src/hexlify.c
    src/hexlify.h
    src/kms_crypto.c
    src/kms_crypto.h
    src/kms_kv_list.c
    src/kms_kv_list.h
+   src/kms_message/kms_encrypt_request.h
    src/kms_message/kms_message.h
    src/kms_message/kms_request.h
+   src/kms_encrypt_request.c
+   src/kms_message.c
    src/kms_request.c
    src/kms_request_str.c
    src/kms_request_str.h
@@ -52,6 +57,7 @@ install (TARGETS kms_message
 
 install (
    FILES
+   src/kms_message/kms_encrypt_request.h
    src/kms_message/kms_message.h
    src/kms_message/kms_request.h
    DESTINATION include/kms_message
@@ -105,8 +111,11 @@ install (
 
 add_executable (
    test_kms_request
+   src/b64.c
    src/hexlify.c
+   src/kms_encrypt_request.c
    src/kms_kv_list.c
+   src/kms_message.c
    test/test_kms_request.c
 )
 

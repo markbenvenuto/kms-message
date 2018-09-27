@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <src/b64.h>
 #include <src/hexlify.h>
 #include <src/kms_request_str.h>
 #include <src/kms_kv_list.h>
@@ -562,6 +563,38 @@ multibyte_test (void)
    free (expect);
    free (actual);
    kms_request_destroy (request);
+
+#undef EU
+}
+
+void
+encrypt_request_test (void)
+{
+   char *actual, *expect;
+   kms_request_t *request = kms_encrypt_request_new ("foobar", "alias/1");
+
+   set_test_date (request);
+   kms_request_set_region (request, "us-east-1");
+   kms_request_set_service (request, "service");
+   kms_request_set_access_key_id (request, "AKIDEXAMPLE");
+   kms_request_set_secret_key (request,
+                               "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
+
+   actual = kms_request_get_canonical (request);
+   printf ("%s\n", actual);
+   expect = read_test ("test/encrypt.creq");
+   compare_strs (__FUNCTION__, expect, actual);
+   free (expect);
+   free (actual);
+
+   actual = kms_request_get_signed (request);
+   printf ("%s\n", actual);
+   expect = read_test ("test/encrypt.sreq");
+   compare_strs (__FUNCTION__, expect, actual);
+
+   free (expect);
+   free (actual);
+   kms_request_destroy (request);
 }
 
 void
@@ -591,6 +624,22 @@ kv_list_del_test (void)
    kms_kv_list_destroy (lst);
 }
 
+void
+b64_test (void)
+{
+   uint8_t *expected = (uint8_t *) "\x01\x02\x03\x04";
+   char encoded[9];
+   int r;
+   uint8_t data[5];
+
+   r = kms_message_b64_ntop (expected, 4, encoded, 9);
+   assert (r == 8);
+   ASSERT_CMPSTR (encoded, "AQIDBA==");
+   r = kms_message_b64_pton (encoded, data, 5); /* +1 for terminator */
+   assert (r == 4);
+   assert (0 == memcmp (expected, data, 4));
+}
+
 #define RUN_TEST(_func)                                      \
    do {                                                      \
       if (!selector || 0 == strcasecmp (#_func, selector)) { \
@@ -617,6 +666,8 @@ main (int argc, char *argv[])
       selector = argv[1];
    }
 
+   kms_message_init ();
+
    RUN_TEST (example_signature_test);
    RUN_TEST (path_normalization_test);
    RUN_TEST (host_test);
@@ -625,7 +676,9 @@ main (int argc, char *argv[])
    RUN_TEST (append_header_field_value_test);
    RUN_TEST (set_date_test);
    RUN_TEST (multibyte_test);
+   RUN_TEST (encrypt_request_test);
    RUN_TEST (kv_list_del_test);
+   RUN_TEST (b64_test);
 
    ran_tests |= spec_tests (aws_test_suite_dir, selector);
 
@@ -636,4 +689,6 @@ main (int argc, char *argv[])
    }
 
    free (selector);
+
+   kms_message_cleanup ();
 }

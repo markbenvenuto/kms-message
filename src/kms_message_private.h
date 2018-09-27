@@ -39,4 +39,20 @@ struct _kms_request_t {
    bool auto_content_length;
 };
 
+#define CHECK_FAILED         \
+   do {                      \
+      if (request->failed) { \
+         return false;       \
+      }                      \
+   } while (0)
+
+void
+set_error (kms_request_t *request, const char *fmt, ...);
+
+#define REQUEST_ERROR(...)              \
+   do {                                 \
+      set_error (request, __VA_ARGS__); \
+      return false;                     \
+   } while (0)
+
 #endif /* KMS_MESSAGE_PRIVATE_H */
