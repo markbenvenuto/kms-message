@@ -1,0 +1,9 @@
+POST / HTTP/1.1
+Content-Length:234
+Content-Type:application/x-amz-json-1.1
+Host:service.us-east-1.amazonaws.com
+X-Amz-Date:20150830T123600Z
+X-Amz-Target:TrentService.Decrypt
+Authorization: AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=content-length;content-type;host;x-amz-date;x-amz-target, Signature=61178f515e421f32caf0a428dc275891a8ca344f41c3b6253ee9a77479462528
+
+{"CiphertextBlob": "AQICAHjzjtjUxrr7oc/BHmjyoZGeNk10osSeMGcIUzMNzeDJGwFgMNRznpAfp0NVhCb51fCxAAAAZDBiBgkqhkiG9w0BBwagVTBTAgEAME4GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMoscSHCU4DuwIHyMJAgEQgCFhA83L4qw2T3PbG3MuM9pFUfTNwP/S4bnEwg6/U5BGGEIA"}

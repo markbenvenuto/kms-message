@@ -105,8 +105,21 @@ last_segment (const char *str)
 }
 
 char *
-read_test (const char *file_path)
+test_file_path (const char *path, const char *suffix)
 {
+   char *r;
+   char *test_name = last_segment (path);
+   char file_path[PATH_MAX];
+   snprintf (file_path, PATH_MAX, "%s/%s.%s", path, test_name, suffix);
+   r = strdup (file_path);
+   free (test_name);
+   return r;
+}
+
+char *
+read_test (const char *path, const char *suffix)
+{
+   char *file_path = test_file_path (path, suffix);
    FILE *f;
    struct stat file_stat;
    size_t f_size;
@@ -136,29 +149,6 @@ read_test (const char *file_path)
    return str;
 }
 
-char *
-aws_test_file_path (const char *path, const char *suffix)
-{
-   char *r;
-   char *test_name = last_segment (path);
-   char file_path[PATH_MAX];
-   snprintf (file_path, PATH_MAX, "%s/%s.%s", path, test_name, suffix);
-   r = strdup (file_path);
-   free (test_name);
-   return r;
-}
-
-char *
-read_aws_test (const char *path, const char *suffix)
-{
-   char *str;
-   char *file_path = aws_test_file_path (path, suffix);
-
-   str = read_test (file_path);
-   free (file_path);
-   return str;
-}
-
 void
 set_test_date (kms_request_t *request)
 {
@@ -173,7 +163,7 @@ kms_request_t *
 read_req (const char *path)
 {
    kms_request_t *request;
-   char *file_path = aws_test_file_path (path, "req");
+   char *file_path = test_file_path (path, "req");
    FILE *f;
    size_t len;
    ssize_t line_len;
@@ -288,17 +278,16 @@ compare_strs (const char *test_name, const char *expect, const char *actual)
 #define ASSERT_CMPSTR(_a, _b) compare_strs (__FUNCTION__, (_a), (_b))
 
 void
-aws_sig_v4_test_compare (kms_request_t *request,
-                         char *(*func) (kms_request_t *),
-                         const char *dir_path,
-                         const char *suffix)
+test_compare (kms_request_t *request,
+              char *(*func) (kms_request_t *),
+              const char *dir_path,
+              const char *suffix)
 {
    char *test_name = last_segment (dir_path);
    char *expect;
    char *actual;
 
-   /* canonical request */
-   expect = read_aws_test (dir_path, suffix);
+   expect = read_test (dir_path, suffix);
    actual = func (request);
    compare_strs (test_name, expect, actual);
    free (actual);
@@ -307,23 +296,44 @@ aws_sig_v4_test_compare (kms_request_t *request,
 }
 
 void
+test_compare_creq (kms_request_t *request, const char *dir_path)
+{
+   test_compare (request, kms_request_get_canonical, dir_path, "creq");
+}
+
+void
+test_compare_sts (kms_request_t *request, const char *dir_path)
+{
+   test_compare (request, kms_request_get_string_to_sign, dir_path, "sts");
+}
+
+void
+test_compare_authz (kms_request_t *request, const char *dir_path)
+{
+   test_compare (request, kms_request_get_signature, dir_path, "authz");
+}
+
+void
+test_compare_sreq (kms_request_t *request, const char *dir_path)
+{
+   test_compare (request, kms_request_get_signed, dir_path, "sreq");
+}
+
+void
 aws_sig_v4_test (const char *dir_path)
 {
    kms_request_t *request;
 
    request = read_req (dir_path);
-   aws_sig_v4_test_compare (
-      request, kms_request_get_canonical, dir_path, "creq");
-   aws_sig_v4_test_compare (
-      request, kms_request_get_string_to_sign, dir_path, "sts");
-   aws_sig_v4_test_compare (
-      request, kms_request_get_signature, dir_path, "authz");
-   aws_sig_v4_test_compare (request, kms_request_get_signed, dir_path, "sreq");
+   test_compare_creq (request, dir_path);
+   test_compare_sts (request, dir_path);
+   test_compare_authz (request, dir_path);
+   test_compare_sreq (request, dir_path);
    kms_request_destroy (request);
 }
 
 bool
-spec_tests (const char *path, const char *selected)
+all_aws_sig_v4_tests (const char *path, const char *selected)
 {
    /* Amazon supplies tests, one per directory, 5 files per test, see
     * docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html */
@@ -351,7 +361,7 @@ spec_tests (const char *path, const char *selected)
 
       if (ent->d_type & DT_DIR) {
          snprintf (sub, PATH_MAX, "%s/%s", path, ent->d_name);
-         ran_tests |= spec_tests (sub, selected);
+         ran_tests |= all_aws_sig_v4_tests (sub, selected);
       }
 
       if (!(ent->d_type & DT_REG) || !ends_with (ent->d_name, ".req")) {
@@ -472,13 +482,8 @@ make_test_request (void)
 void
 host_test (void)
 {
-   char *actual, *expect;
    kms_request_t *request = make_test_request ();
-   actual = kms_request_get_signed (request);
-   expect = read_test ("test/host_test.sreq");
-   compare_strs (__FUNCTION__, expect, actual);
-   free (expect);
-   free (actual);
+   test_compare_sreq (request, "test/host");
    kms_request_destroy (request);
 }
 
@@ -486,14 +491,9 @@ void
 content_length_test (void)
 {
    const char *payload = "foo-payload";
-   char *actual, *expect;
    kms_request_t *request = make_test_request ();
    kms_request_append_payload (request, payload, strlen (payload));
-   actual = kms_request_get_signed (request);
-   expect = read_test ("test/content_length_test.sreq");
-   compare_strs (__FUNCTION__, expect, actual);
-   free (expect);
-   free (actual);
+   test_compare_sreq (request, "test/content_length");
    kms_request_destroy (request);
 }
 
@@ -534,7 +534,6 @@ multibyte_test (void)
 /* euro currency symbol */
 #define EU "\xe2\x82\xac"
 
-   char *actual, *expect;
    kms_request_t *request = kms_request_new ("GET", "/" EU "/?euro=" EU);
 
    set_test_date (request);
@@ -550,27 +549,48 @@ multibyte_test (void)
    /* header field 0 is "X-Amz-Date" */
    ASSERT_CMPSTR (request->header_fields->kvs[1].value->str, EU "asdf" EU);
 
-   expect = read_test ("test/multibyte.creq");
-   actual = kms_request_get_canonical (request);
-   compare_strs (__FUNCTION__, expect, actual);
-   free (expect);
-   free (actual);
+   test_compare_creq (request, "test/multibyte");
+   test_compare_sreq (request, "test/multibyte");
 
-   expect = read_test ("test/multibyte.sreq");
-   actual = kms_request_get_signed (request);
-   compare_strs (__FUNCTION__, expect, actual);
-
-   free (expect);
-   free (actual);
    kms_request_destroy (request);
 
 #undef EU
 }
 
+/* the ciphertext blob from a response to an "Encrypt" API call */
+const char ciphertext_blob[] =
+   "\x01\x02\x02\x00\x78\xf3\x8e\xd8\xd4\xc6\xba\xfb\xa1\xcf\xc1\x1e\x68\xf2"
+   "\xa1\x91\x9e\x36\x4d\x74\xa2\xc4\x9e\x30\x67\x08\x53\x33\x0d\xcd\xe0\xc9"
+   "\x1b\x01\x60\x30\xd4\x73\x9e\x90\x1f\xa7\x43\x55\x84\x26\xf9\xd5\xf0\xb1"
+   "\x00\x00\x00\x64\x30\x62\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x06\xa0"
+   "\x55\x30\x53\x02\x01\x00\x30\x4e\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07"
+   "\x01\x30\x1e\x06\x09\x60\x86\x48\x01\x65\x03\x04\x01\x2e\x30\x11\x04\x0c"
+   "\xa2\xc7\x12\x1c\x25\x38\x0e\xec\x08\x1f\x23\x09\x02\x01\x10\x80\x21\x61"
+   "\x03\xcd\xcb\xe2\xac\x36\x4f\x73\xdb\x1b\x73\x2e\x33\xda\x45\x51\xf4\xcd"
+   "\xc0\xff\xd2\xe1\xb9\xc4\xc2\x0e\xbf\x53\x90\x46\x18\x42";
+
+void
+decrypt_request_test (void)
+{
+   kms_request_t *request = kms_decrypt_request_new (
+      (uint8_t *) ciphertext_blob, sizeof (ciphertext_blob));
+
+   set_test_date (request);
+   kms_request_set_region (request, "us-east-1");
+   kms_request_set_service (request, "service");
+   kms_request_set_access_key_id (request, "AKIDEXAMPLE");
+   kms_request_set_secret_key (request,
+                               "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
+
+   test_compare_creq (request, "test/decrypt");
+   test_compare_sreq (request, "test/decrypt");
+
+   kms_request_destroy (request);
+}
+
 void
 encrypt_request_test (void)
 {
-   char *actual, *expect;
    kms_request_t *request = kms_encrypt_request_new ("foobar", "alias/1");
 
    set_test_date (request);
@@ -580,20 +600,9 @@ encrypt_request_test (void)
    kms_request_set_secret_key (request,
                                "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
 
-   actual = kms_request_get_canonical (request);
-   printf ("%s\n", actual);
-   expect = read_test ("test/encrypt.creq");
-   compare_strs (__FUNCTION__, expect, actual);
-   free (expect);
-   free (actual);
+   test_compare_creq (request, "test/encrypt");
+   test_compare_sreq (request, "test/encrypt");
 
-   actual = kms_request_get_signed (request);
-   printf ("%s\n", actual);
-   expect = read_test ("test/encrypt.sreq");
-   compare_strs (__FUNCTION__, expect, actual);
-
-   free (expect);
-   free (actual);
    kms_request_destroy (request);
 }
 
@@ -676,11 +685,12 @@ main (int argc, char *argv[])
    RUN_TEST (append_header_field_value_test);
    RUN_TEST (set_date_test);
    RUN_TEST (multibyte_test);
+   RUN_TEST (decrypt_request_test);
    RUN_TEST (encrypt_request_test);
    RUN_TEST (kv_list_del_test);
    RUN_TEST (b64_test);
 
-   ran_tests |= spec_tests (aws_test_suite_dir, selector);
+   ran_tests |= all_aws_sig_v4_tests (aws_test_suite_dir, selector);
 
    if (!ran_tests) {
       assert (argc == 2);
