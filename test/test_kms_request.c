@@ -573,7 +573,7 @@ void
 decrypt_request_test (void)
 {
    kms_request_t *request = kms_decrypt_request_new (
-      (uint8_t *) ciphertext_blob, sizeof (ciphertext_blob));
+      (uint8_t *) ciphertext_blob, sizeof (ciphertext_blob) - 1);
 
    set_test_date (request);
    kms_request_set_region (request, "us-east-1");
