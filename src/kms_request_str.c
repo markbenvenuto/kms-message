@@ -138,6 +138,12 @@ kms_request_str_detach (kms_request_str_t *str)
    return r;
 }
 
+const char *
+kms_request_str_get (kms_request_str_t *str)
+{
+   return str->str;
+}
+
 bool
 kms_request_str_reserve (kms_request_str_t *str, size_t size)
 {

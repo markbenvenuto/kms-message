@@ -23,6 +23,8 @@ add_library (
    src/kms_message/kms_decrypt_request.h
    src/kms_message/kms_encrypt_request.h
    src/kms_message/kms_message.h
+   src/kms_message/kms_response.h
+   src/kms_message/kms_response_parser.h
    src/kms_message/kms_request.h
    src/kms_decrypt_request.c
    src/kms_encrypt_request.c
@@ -30,6 +32,8 @@ add_library (
    src/kms_request.c
    src/kms_request_str.c
    src/kms_request_str.h
+   src/kms_response.c
+   src/kms_response_parser.c
 )
 
 include (FindOpenSSL)

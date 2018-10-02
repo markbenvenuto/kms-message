@@ -45,6 +45,8 @@ KMS_MSG_EXPORT (void)
 kms_message_cleanup (void);
 
 #include "kms_request.h"
+#include "kms_response.h"
+#include "kms_response_parser.h"
 #include "kms_decrypt_request.h"
 #include "kms_encrypt_request.h"
 

@@ -39,6 +39,29 @@ struct _kms_request_t {
    bool auto_content_length;
 };
 
+struct _kms_response_t {
+   int status;
+   kms_kv_list_t *headers;
+   kms_request_str_t *body;
+};
+
+typedef enum {
+   PARSING_STATUS_LINE,
+   PARSING_HEADER,
+   PARSING_BODY,
+   PARSING_DONE
+} kms_response_parser_state_t;
+
+struct _kms_response_parser_t {
+   char error[512];
+   bool failed;
+   kms_response_t *response;
+   kms_request_str_t *raw_response;
+   int content_length;
+   int start; /* start of the current thing getting parsed. */
+   kms_response_parser_state_t state;
+};
+
 #define CHECK_FAILED         \
    do {                      \
       if (request->failed) { \
@@ -47,12 +70,12 @@ struct _kms_request_t {
    } while (0)
 
 void
-set_error (kms_request_t *request, const char *fmt, ...);
+set_error (char *error, size_t size, const char *fmt, ...);
 
-#define REQUEST_ERROR(...)              \
-   do {                                 \
-      set_error (request, __VA_ARGS__); \
-      return false;                     \
+#define KMS_ERROR(obj, ...)                                     \
+   do {                                                         \
+      obj->failed = true;                                       \
+      set_error (obj->error, sizeof (obj->error), __VA_ARGS__); \
    } while (0)
 
 #endif /* KMS_MESSAGE_PRIVATE_H */

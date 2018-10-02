@@ -277,6 +277,11 @@ compare_strs (const char *test_name, const char *expect, const char *actual)
 
 #define ASSERT_CMPSTR(_a, _b) compare_strs (__FUNCTION__, (_a), (_b))
 
+#define ASSERT(stmt)                                    \
+   if (!(stmt)) {                                       \
+      fprintf (stderr, "statement failed %s\n", #stmt); \
+   }
+
 void
 test_compare (kms_request_t *request,
               char *(*func) (kms_request_t *),
@@ -649,6 +654,55 @@ b64_test (void)
    assert (0 == memcmp (expected, data, 4));
 }
 
+void
+kms_response_parser_test (void)
+{
+   FILE *response_file;
+   kms_response_parser_t *parser = kms_response_parser_new ();
+   uint8_t buf[512] = {0};
+   int bytes_to_read = 0;
+   kms_response_t *response;
+
+   response_file = fopen ("./test/example-response.bin", "r");
+   ASSERT (response_file);
+
+   while ((bytes_to_read = kms_response_parser_wants_bytes (parser, 512)) > 0) {
+      size_t ret = (int) fread (buf, 1, (size_t) bytes_to_read, response_file);
+
+      ASSERT (ret != -1);
+      ASSERT (kms_response_parser_feed (parser, buf, (int) ret));
+   }
+
+   fclose (response_file);
+
+   response = kms_response_parser_get_response (parser);
+
+   ASSERT (response->status == 200);
+   ASSERT_CMPSTR (response->body->str,
+                  "{\"CiphertextBlob\":\"AQICAHifzrL6n/"
+                  "3uqZyz+z1bJj80DhqPcSAibAaIoYc+HOVP6QEplwbM0wpvU5zsQG/"
+                  "1SBKvAAAAZDBiBgkqhkiG9w0BBwagVTBTAgEAME4GCSqGSIb3DQEHATAeBgl"
+                  "ghkgBZQMEAS4wEQQM5syMJE7RodxDaqYqAgEQgCHMFCnFso4Lih0CNbLT1ki"
+                  "ET0hQyzjgoa9733353GQkGlM=\",\"KeyId\":\"arn:aws:kms:us-east-"
+                  "1:524754917239:key/bd05530b-0a7f-4fbd-8362-ab3667370db0\"}");
+
+   kms_response_destroy (response);
+
+   /* the parser resets after returning a response. */
+   kms_response_parser_feed (
+      parser, (uint8_t *) "HTTP/1.1 201 CREATED\r\n", 22);
+   kms_response_parser_feed (parser, (uint8_t *) "Content-Length: 15\r\n", 20);
+   kms_response_parser_feed (parser, (uint8_t *) "\r\n", 2);
+   kms_response_parser_feed (parser, (uint8_t *) "This is a test.", 15);
+   ASSERT (0 == kms_response_parser_wants_bytes (parser, 123));
+   response = kms_response_parser_get_response (parser);
+   ASSERT (response->status == 201)
+   ASSERT_CMPSTR (response->body->str, "This is a test.");
+
+   kms_response_destroy (response);
+   kms_response_parser_destroy (parser);
+}
+
 #define RUN_TEST(_func)                                      \
    do {                                                      \
       if (!selector || 0 == strcasecmp (#_func, selector)) { \
@@ -692,13 +746,13 @@ main (int argc, char *argv[])
 
    ran_tests |= all_aws_sig_v4_tests (aws_test_suite_dir, selector);
 
+   RUN_TEST (kms_response_parser_test);
+
    if (!ran_tests) {
       assert (argc == 2);
       fprintf (stderr, "No such test: \"%s\"\n", argv[1]);
       abort ();
    }
-
-   free (selector);
 
    kms_message_cleanup ();
 }

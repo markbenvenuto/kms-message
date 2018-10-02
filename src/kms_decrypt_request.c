@@ -44,14 +44,14 @@ kms_decrypt_request_new (const uint8_t *ciphertext_blob, size_t len)
    b64_len = (len / 3 + 1) * 4 + 1;
 
    if (!(b64 = malloc (b64_len))) {
-      set_error (request,
+      KMS_ERROR (request,
                  "Could not allocate %d bytes for base64-encoding payload",
                  b64_len);
       goto done;
    }
 
    if (kms_message_b64_ntop (ciphertext_blob, len, b64, b64_len) == -1) {
-      set_error (request, "Could not base64-encode ciphertext blob");
+      KMS_ERROR (request, "Could not base64-encode ciphertext blob");
       goto done;
    }
 

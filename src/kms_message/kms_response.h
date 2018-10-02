@@ -1,8 +1,7 @@
 /*
  * Copyright 2018-present MongoDB, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"){}
- *
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -15,31 +14,14 @@
  * limitations under the License.
  */
 
-#include "b64.h"
-#include "kms_message/kms_message.h"
-#include "kms_message_private.h"
+#ifndef KMS_RESPONSE_H
+#define KMS_RESPONSE_H
 
-#include <stdarg.h>
-#include <stdio.h>
+#include "kms_message.h"
 
-void
-set_error (char *error, size_t size, const char *fmt, ...)
-{
-   va_list va;
+typedef struct _kms_response_t kms_response_t;
 
-   va_start (va, fmt);
-   (void) vsnprintf (error, size, fmt, va);
-   va_end (va);
-}
+KMS_MSG_EXPORT (const char *) kms_response_get_body (kms_response_t *reply);
+KMS_MSG_EXPORT (void) kms_response_destroy (kms_response_t *reply);
 
-void
-kms_message_init (void)
-{
-   kms_message_b64_initialize_rmap ();
-}
-
-void
-kms_message_cleanup (void)
-{
-   /* nothing yet */
-}
+#endif /* KMS_RESPONSE_H */

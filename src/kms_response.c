@@ -15,31 +15,17 @@
  * limitations under the License.
  */
 
-#include "b64.h"
 #include "kms_message/kms_message.h"
 #include "kms_message_private.h"
-
-#include <stdarg.h>
-#include <stdio.h>
+#include "kms_request_str.h"
 
 void
-set_error (char *error, size_t size, const char *fmt, ...)
+kms_response_destroy (kms_response_t *response)
 {
-   va_list va;
-
-   va_start (va, fmt);
-   (void) vsnprintf (error, size, fmt, va);
-   va_end (va);
-}
-
-void
-kms_message_init (void)
-{
-   kms_message_b64_initialize_rmap ();
-}
-
-void
-kms_message_cleanup (void)
-{
-   /* nothing yet */
+   if (response == NULL) {
+      return;
+   }
+   kms_kv_list_destroy (response->headers);
+   kms_request_str_destroy (response->body);
+   free (response);
 }

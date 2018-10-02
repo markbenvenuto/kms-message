@@ -45,7 +45,7 @@ kms_encrypt_request_new (const char *plaintext, const char *key_id)
    plain_len = strlen (plaintext);
    b64_len = (plain_len / 3 + 1) * 4 + 1;
    if (!(b64 = malloc (b64_len))) {
-      set_error (request,
+      KMS_ERROR (request,
                  "Could not allocate %d bytes for base64-encoding payload",
                  b64_len);
       goto done;
@@ -53,7 +53,7 @@ kms_encrypt_request_new (const char *plaintext, const char *key_id)
 
    if (kms_message_b64_ntop (
           (const uint8_t *) plaintext, plain_len, b64, b64_len) == -1) {
-      set_error (request, "Could not base64-encode plaintext");
+      KMS_ERROR (request, "Could not base64-encode plaintext");
       goto done;
    }
 
