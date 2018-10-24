@@ -56,7 +56,9 @@ parse_query_params (kms_request_str_t *q)
 }
 
 kms_request_t *
-kms_request_new (const char *method, const char *path_and_query)
+kms_request_new (const char *method,
+                 const char *path_and_query,
+                 kms_request_opt_t *opt)
 {
    kms_request_t *request = calloc (1, sizeof (kms_request_t));
    const char *question_mark;
@@ -93,6 +95,10 @@ kms_request_new (const char *method, const char *path_and_query)
 
    kms_request_set_date (request, NULL);
 
+   if (opt->connection_close) {
+      kms_request_add_header_field (request, "Connection", "close");
+   }
+
    return request;
 }
 
@@ -128,10 +134,6 @@ kms_request_set_date (kms_request_t *request, const struct tm *tm)
    char buf[sizeof AMZ_DT_FORMAT];
    struct tm tmp_tm;
 
-   if (request->failed) {
-      return false;
-   }
-
    if (!tm) {
       /* use current time */
       time_t t;
@@ -142,7 +144,6 @@ kms_request_set_date (kms_request_t *request, const struct tm *tm)
 
    if (0 == strftime (buf, sizeof AMZ_DT_FORMAT, "%Y%m%dT%H%M%SZ", tm)) {
       KMS_ERROR (request, "Invalid tm struct");
-      return false;
    }
 
    kms_request_str_set_chars (request->date, buf, sizeof "YYYYmmDD" - 1);
@@ -328,6 +329,10 @@ append_signed_headers (kms_kv_list_t *lst, kms_request_str_t *str)
          continue;
       }
 
+      if (0 == strcasecmp (kv->key->str, "connection")) {
+         continue;
+      }
+
       kms_request_str_append_lowercase (str, kv->key);
       if (i < lst->len - 1) {
          kms_request_str_append_char (str, ';');
@@ -380,6 +385,7 @@ canonical_headers (const kms_request_t *request)
    }
 
    kms_kv_list_sort (lst, cmp_header_field_names);
+   kms_kv_list_del (lst, "Connection");
    return lst;
 }
 
