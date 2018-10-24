@@ -186,7 +186,7 @@ read_req (const char *path)
    uri_path = strndup (line + strlen (method) + 1,
                        line_len - strlen (method) - 1 - strlen (" HTTP/1.1\n"));
 
-   request = kms_request_new (method, uri_path);
+   request = kms_request_new (method, uri_path, NULL);
    request->auto_content_length = false;
    /* from docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html */
    kms_request_set_region (request, "us-east-1");
@@ -401,7 +401,7 @@ example_signature_test (void)
    unsigned char signing[32];
    char *sig;
 
-   request = kms_request_new ("GET", "uri");
+   request = kms_request_new ("GET", "uri", NULL);
    set_test_date (request);
    kms_request_set_region (request, "us-east-1");
    kms_request_set_service (request, "iam");
@@ -473,7 +473,7 @@ path_normalization_test (void)
 kms_request_t *
 make_test_request (void)
 {
-   kms_request_t *request = kms_request_new ("POST", "/");
+   kms_request_t *request = kms_request_new ("POST", "/", NULL);
 
    kms_request_set_region (request, "foo-region");
    kms_request_set_service (request, "foo-service");
@@ -505,7 +505,7 @@ content_length_test (void)
 void
 bad_query_test (void)
 {
-   kms_request_t *request = kms_request_new ("GET", "/?asdf");
+   kms_request_t *request = kms_request_new ("GET", "/?asdf", NULL);
    ASSERT_CONTAINS (kms_request_get_error (request), "Cannot parse");
    kms_request_destroy (request);
 }
@@ -513,7 +513,7 @@ bad_query_test (void)
 void
 append_header_field_value_test (void)
 {
-   kms_request_t *request = kms_request_new ("GET", "/");
+   kms_request_t *request = kms_request_new ("GET", "/", NULL);
    assert (kms_request_add_header_field (request, "a", "b"));
    assert (kms_request_append_header_field_value (request, "asdf", 4));
    /* header field 0 is "X-Amz-Date", field 1 is "a" */
@@ -525,7 +525,7 @@ void
 set_date_test (void)
 {
    struct tm tm = {0};
-   kms_request_t *request = kms_request_new ("GET", "/");
+   kms_request_t *request = kms_request_new ("GET", "/", NULL);
 
    tm.tm_sec = 9999; /* invalid, shouldn't be > 60 */
    assert (!kms_request_set_date (request, &tm));
@@ -539,7 +539,7 @@ multibyte_test (void)
 /* euro currency symbol */
 #define EU "\xe2\x82\xac"
 
-   kms_request_t *request = kms_request_new ("GET", "/" EU "/?euro=" EU);
+   kms_request_t *request = kms_request_new ("GET", "/" EU "/?euro=" EU, NULL);
 
    set_test_date (request);
    assert (kms_request_set_region (request, EU));
@@ -562,6 +562,26 @@ multibyte_test (void)
 #undef EU
 }
 
+void
+connection_close_test (void)
+{
+   kms_request_opt_t *opt;
+   kms_request_t *request;
+
+   opt = kms_request_opt_new ();
+   kms_request_opt_set_connection_close (opt, true);
+
+   request = kms_request_new ("POST", "/", opt);
+   kms_request_set_region (request, "foo-region");
+   kms_request_set_service (request, "foo-service");
+   kms_request_set_access_key_id (request, "foo-akid");
+   kms_request_set_secret_key (request, "foo-key");
+   set_test_date (request);
+
+   test_compare_sreq (request, "test/connection_close");
+   kms_request_destroy (request);
+}
+
 /* the ciphertext blob from a response to an "Encrypt" API call */
 const char ciphertext_blob[] =
    "\x01\x02\x02\x00\x78\xf3\x8e\xd8\xd4\xc6\xba\xfb\xa1\xcf\xc1\x1e\x68\xf2"
@@ -578,7 +598,7 @@ void
 decrypt_request_test (void)
 {
    kms_request_t *request = kms_decrypt_request_new (
-      (uint8_t *) ciphertext_blob, sizeof (ciphertext_blob) - 1);
+      (uint8_t *) ciphertext_blob, sizeof (ciphertext_blob) - 1, NULL);
 
    set_test_date (request);
    kms_request_set_region (request, "us-east-1");
@@ -596,7 +616,7 @@ decrypt_request_test (void)
 void
 encrypt_request_test (void)
 {
-   kms_request_t *request = kms_encrypt_request_new ("foobar", "alias/1");
+   kms_request_t *request = kms_encrypt_request_new ("foobar", "alias/1", NULL);
 
    set_test_date (request);
    kms_request_set_region (request, "us-east-1");
@@ -739,6 +759,7 @@ main (int argc, char *argv[])
    RUN_TEST (append_header_field_value_test);
    RUN_TEST (set_date_test);
    RUN_TEST (multibyte_test);
+   RUN_TEST (connection_close_test);
    RUN_TEST (decrypt_request_test);
    RUN_TEST (encrypt_request_test);
    RUN_TEST (kv_list_del_test);

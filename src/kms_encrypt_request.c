@@ -20,9 +20,10 @@
 #include "b64.h"
 #include "kms_request_str.h"
 
-
 kms_request_t *
-kms_encrypt_request_new (const char *plaintext, const char *key_id)
+kms_encrypt_request_new (const char *plaintext,
+                         const char *key_id,
+                         const kms_request_opt_t *opt)
 {
    size_t plain_len;
    kms_request_t *request;
@@ -30,7 +31,7 @@ kms_encrypt_request_new (const char *plaintext, const char *key_id)
    char *b64 = NULL;
    kms_request_str_t *payload = NULL;
 
-   request = kms_request_new ("POST", "/");
+   request = kms_request_new ("POST", "/", opt);
    if (kms_request_get_error (request)) {
       goto done;
    }

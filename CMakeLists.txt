@@ -18,18 +18,21 @@ add_library (
    src/hexlify.h
    src/kms_crypto.c
    src/kms_crypto.h
+   src/kms_decrypt_request.c
+   src/kms_encrypt_request.c
    src/kms_kv_list.c
    src/kms_kv_list.h
+   src/kms_message.c
    src/kms_message/kms_decrypt_request.h
    src/kms_message/kms_encrypt_request.h
    src/kms_message/kms_message.h
+   src/kms_message/kms_request.h
+   src/kms_message/kms_request_opt.h
    src/kms_message/kms_response.h
    src/kms_message/kms_response_parser.h
-   src/kms_message/kms_request.h
-   src/kms_decrypt_request.c
-   src/kms_encrypt_request.c
-   src/kms_message.c
    src/kms_request.c
+   src/kms_request_opt.c
+   src/kms_request_opt_private.h
    src/kms_request_str.c
    src/kms_request_str.h
    src/kms_response.c
@@ -66,9 +69,11 @@ install (
    src/kms_message/kms_decrypt_request.h
    src/kms_message/kms_encrypt_request.h
    src/kms_message/kms_message.h
+   src/kms_message/kms_message_defines.h
+   src/kms_message/kms_request.h
+   src/kms_message/kms_request_opt.h
    src/kms_message/kms_response.h
    src/kms_message/kms_response_parser.h
-   src/kms_message/kms_request.h
    DESTINATION include/kms_message
    COMPONENT Devel
 )

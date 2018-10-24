@@ -20,6 +20,8 @@
 #include "kms_message.h"
 
 KMS_MSG_EXPORT (kms_request_t *)
-kms_decrypt_request_new (const uint8_t *ciphertext_blob, size_t len);
+kms_decrypt_request_new (const uint8_t *ciphertext_blob,
+                         size_t len,
+                         const kms_request_opt_t *opt);
 
 #endif /* KMS_DECRYPT_REQUEST_H */

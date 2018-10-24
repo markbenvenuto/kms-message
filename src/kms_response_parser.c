@@ -189,7 +189,7 @@ kms_response_parser_feed (kms_response_parser_t *parser,
                           uint32_t len)
 {
    kms_request_str_t *raw = parser->raw_response;
-   int curr, i, body_read;
+   int curr, body_read;
 
    curr = raw->len;
    kms_request_str_append_chars (raw, (char *) buf, len);

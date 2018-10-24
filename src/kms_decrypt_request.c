@@ -22,14 +22,16 @@
 
 
 kms_request_t *
-kms_decrypt_request_new (const uint8_t *ciphertext_blob, size_t len)
+kms_decrypt_request_new (const uint8_t *ciphertext_blob,
+                         size_t len,
+                         const kms_request_opt_t *opt)
 {
    kms_request_t *request;
    size_t b64_len;
    char *b64 = NULL;
    kms_request_str_t *payload = NULL;
 
-   request = kms_request_new ("POST", "/");
+   request = kms_request_new ("POST", "/", opt);
    if (kms_request_get_error (request)) {
       goto done;
    }

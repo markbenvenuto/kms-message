@@ -24,6 +24,7 @@
 struct _kms_request_t {
    char error[512];
    bool failed;
+   bool finalized;
    kms_request_str_t *region;
    kms_request_str_t *service;
    kms_request_str_t *access_key_id;
@@ -36,6 +37,7 @@ struct _kms_request_t {
    kms_request_str_t *date;
    kms_kv_list_t *query_params;
    kms_kv_list_t *header_fields;
+   /* turn off for tests only, not in public kms_request_opt_t API */
    bool auto_content_length;
 };
 

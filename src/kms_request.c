@@ -18,6 +18,7 @@
 #include "kms_crypto.h"
 #include "kms_message/kms_message.h"
 #include "kms_message_private.h"
+#include "kms_request_opt_private.h"
 
 #include <assert.h>
 #include <openssl/evp.h>
@@ -56,7 +57,9 @@ parse_query_params (kms_request_str_t *q)
 }
 
 kms_request_t *
-kms_request_new (const char *method, const char *path_and_query)
+kms_request_new (const char *method,
+                 const char *path_and_query,
+                 const kms_request_opt_t *opt)
 {
    kms_request_t *request = calloc (1, sizeof (kms_request_t));
    const char *question_mark;
@@ -64,6 +67,7 @@ kms_request_new (const char *method, const char *path_and_query)
    /* parsing may set failed to true */
    request->failed = false;
 
+   request->finalized = false;
    request->region = kms_request_str_new ();
    request->service = kms_request_str_new ();
    request->access_key_id = kms_request_str_new ();
@@ -92,6 +96,10 @@ kms_request_new (const char *method, const char *path_and_query)
    request->auto_content_length = true;
 
    kms_request_set_date (request, NULL);
+
+   if (opt && opt->connection_close) {
+      kms_request_add_header_field (request, "Connection", "close");
+   }
 
    return request;
 }
@@ -328,6 +336,10 @@ append_signed_headers (kms_kv_list_t *lst, kms_request_str_t *str)
          continue;
       }
 
+      if (0 == strcasecmp (kv->key->str, "connection")) {
+         continue;
+      }
+
       kms_request_str_append_lowercase (str, kv->key);
       if (i < lst->len - 1) {
          kms_request_str_append_char (str, ';');
@@ -337,26 +349,25 @@ append_signed_headers (kms_kv_list_t *lst, kms_request_str_t *str)
    }
 }
 
-/* docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
- *
- * "Build the canonical headers list by sorting the (lowercase) headers by
- * character code... Do not sort the values in headers that have multiple
- * values."
- */
-static int
-cmp_header_field_names (const void *a, const void *b)
-{
-   return strcasecmp (((kms_kv_t *) a)->key->str, ((kms_kv_t *) b)->key->str);
-}
-
-static kms_kv_list_t *
-canonical_headers (const kms_request_t *request)
+static bool
+finalize (kms_request_t *request)
 {
    kms_kv_list_t *lst;
    kms_request_str_t *k;
    kms_request_str_t *v;
 
-   lst = kms_kv_list_dup (request->header_fields);
+   if (request->failed) {
+      return false;
+   }
+
+   if (request->finalized) {
+      return true;
+   }
+
+   request->finalized = true;
+
+   lst = request->header_fields;
+
    if (!kms_kv_list_find (lst, "Host")) {
       /* like "kms.us-east-1.amazonaws.com" */
       k = kms_request_str_new_from_chars ("Host", -1);
@@ -379,7 +390,30 @@ canonical_headers (const kms_request_t *request)
       kms_request_str_destroy (v);
    }
 
+   return true;
+}
+
+/* docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
+ *
+ * "Build the canonical headers list by sorting the (lowercase) headers by
+ * character code... Do not sort the values in headers that have multiple
+ * values."
+ */
+static int
+cmp_header_field_names (const void *a, const void *b)
+{
+   return strcasecmp (((kms_kv_t *) a)->key->str, ((kms_kv_t *) b)->key->str);
+}
+
+static kms_kv_list_t *
+canonical_headers (const kms_request_t *request)
+{
+   kms_kv_list_t *lst;
+
+   assert (request->finalized);
+   lst = kms_kv_list_dup (request->header_fields);
    kms_kv_list_sort (lst, cmp_header_field_names);
+   kms_kv_list_del (lst, "Connection");
    return lst;
 }
 
@@ -391,6 +425,10 @@ kms_request_get_canonical (kms_request_t *request)
    kms_kv_list_t *lst;
 
    if (request->failed) {
+      return NULL;
+   }
+
+   if (!finalize (request)) {
       return NULL;
    }
 
@@ -423,6 +461,10 @@ kms_request_get_string_to_sign (kms_request_t *request)
    kms_request_str_t *creq = NULL; /* canonical request */
 
    if (request->failed) {
+      return NULL;
+   }
+
+   if (!finalize (request)) {
       return NULL;
    }
 
@@ -590,6 +632,10 @@ kms_request_get_signed (kms_request_t *request)
       return NULL;
    }
 
+   if (!finalize (request)) {
+      return NULL;
+   }
+
    sreq = kms_request_str_new ();
    /* like "POST / HTTP/1.1" */
    kms_request_str_append (sreq, request->method);
@@ -604,7 +650,8 @@ kms_request_get_signed (kms_request_t *request)
    kms_request_str_append_newline (sreq);
 
    /* headers */
-   lst = canonical_headers (request);
+   lst = kms_kv_list_dup (request->header_fields);
+   kms_kv_list_sort (lst, cmp_header_field_names);
    for (i = 0; i < lst->len; i++) {
       kms_request_str_append (sreq, lst->kvs[i].key);
       kms_request_str_append_char (sreq, ':');

@@ -14,58 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef KMS_REQUEST_H
-#define KMS_REQUEST_H
+#ifndef KMS_REQUEST_OPT_H
+#define KMS_REQUEST_OPT_H
 
-#include "kms_message.h"
+#include "kms_message_defines.h"
 
 #include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <time.h>
 
 typedef struct _kms_request_opt_t kms_request_opt_t;
-typedef struct _kms_request_t kms_request_t;
 
-KMS_MSG_EXPORT (kms_request_t *)
-kms_request_new (const char *method,
-                 const char *path_and_query,
-                 kms_request_opt_t *opts);
+KMS_MSG_EXPORT (kms_request_opt_t *)
+kms_request_opt_new (void);
 KMS_MSG_EXPORT (void)
-kms_request_destroy (kms_request_t *request);
-KMS_MSG_EXPORT (const char *)
-kms_request_get_error (kms_request_t *request);
-KMS_MSG_EXPORT (bool)
-kms_request_set_date (kms_request_t *request, const struct tm *tm);
-KMS_MSG_EXPORT (bool)
-kms_request_set_region (kms_request_t *request, const char *region);
-KMS_MSG_EXPORT (bool)
-kms_request_set_service (kms_request_t *request, const char *service);
-KMS_MSG_EXPORT (bool)
-kms_request_set_access_key_id (kms_request_t *request, const char *akid);
-KMS_MSG_EXPORT (bool)
-kms_request_set_secret_key (kms_request_t *request, const char *key);
-KMS_MSG_EXPORT (bool)
-kms_request_add_header_field (kms_request_t *request,
-                              const char *field_name,
-                              const char *value);
-KMS_MSG_EXPORT (bool)
-kms_request_append_header_field_value (kms_request_t *request,
-                                       const char *value,
-                                       size_t len);
-KMS_MSG_EXPORT (bool)
-kms_request_append_payload (kms_request_t *request,
-                            const char *payload,
-                            size_t len);
-KMS_MSG_EXPORT (char *)
-kms_request_get_canonical (kms_request_t *request);
-KMS_MSG_EXPORT (char *)
-kms_request_get_string_to_sign (kms_request_t *request);
-KMS_MSG_EXPORT (bool)
-kms_request_get_signing_key (kms_request_t *request, unsigned char *key);
-KMS_MSG_EXPORT (char *)
-kms_request_get_signature (kms_request_t *request);
-KMS_MSG_EXPORT (char *)
-kms_request_get_signed (kms_request_t *request);
+kms_request_opt_destroy (kms_request_opt_t *request);
+KMS_MSG_EXPORT (void)
+kms_request_opt_set_connection_close (kms_request_opt_t *opt,
+                                      bool connection_close);
 
-#endif /* KMS_REQUEST_H */
+#endif /* KMS_REQUEST_OPT_H */

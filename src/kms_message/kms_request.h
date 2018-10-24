@@ -27,7 +27,9 @@
 typedef struct _kms_request_t kms_request_t;
 
 KMS_MSG_EXPORT (kms_request_t *)
-kms_request_new (const char *method, const char *path_and_query);
+kms_request_new (const char *method,
+                 const char *path_and_query,
+                 const kms_request_opt_t *opt);
 KMS_MSG_EXPORT (void)
 kms_request_destroy (kms_request_t *request);
 KMS_MSG_EXPORT (const char *)
