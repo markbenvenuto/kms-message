@@ -39,6 +39,13 @@ add_library (
    src/kms_response_parser.c
 )
 
+if ( CMAKE_COMPILER_IS_GNUCC )
+    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-function  -Werror")
+endif()
+if ( MSVC )
+    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} /W3 /WX")
+endif()
+
 include (FindOpenSSL)
 target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
 target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
