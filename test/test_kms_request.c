@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+/* Needed for strptime */
+#define _GNU_SOURCE
+
 #include "src/kms_message/kms_message.h"
 #include "src/kms_message_private.h"
 
@@ -25,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <src/b64.h>
 #include <src/hexlify.h>
 #include <src/kms_request_str.h>
@@ -145,6 +149,8 @@ read_test (const char *path, const char *suffix)
 
    fclose (f);
    str[f_size] = '\0';
+
+   free(file_path);
 
    return str;
 }
@@ -736,7 +742,6 @@ int
 main (int argc, char *argv[])
 {
    const char *help;
-   char *dir_path = NULL;
    char *selector = NULL;
    bool ran_tests = false;
 
@@ -776,4 +781,6 @@ main (int argc, char *argv[])
    }
 
    kms_message_cleanup ();
+
+   return 0;
 }
