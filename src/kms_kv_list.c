@@ -202,7 +202,6 @@ insertionsort (unsigned char *a, size_t n, size_t size, cmp_t cmp)
 void
 kms_kv_list_sort (kms_kv_list_t *lst, int (*cmp) (const void *, const void *))
 {
-   //#error TODO - replace with stable sort!
-   //(void) qsort (lst->kvs, lst->len, sizeof (kms_kv_t), cmp);
+   /* A stable sort is required. */
    insertionsort (lst->kvs, lst->len, sizeof (kms_kv_t), cmp);
 }
