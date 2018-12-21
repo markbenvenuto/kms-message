@@ -18,6 +18,7 @@
 #include "b64.h"
 #include "kms_message/kms_message.h"
 #include "kms_message_private.h"
+#include "kms_crypto.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -32,14 +33,15 @@ set_error (char *error, size_t size, const char *fmt, ...)
    va_end (va);
 }
 
-void
+int
 kms_message_init (void)
 {
    kms_message_b64_initialize_rmap ();
+   return kms_crypto_init ();
 }
 
 void
 kms_message_cleanup (void)
 {
-   /* nothing yet */
+   kms_crypto_cleanup ();
 }

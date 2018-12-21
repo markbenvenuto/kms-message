@@ -749,7 +749,11 @@ main (int argc, char *argv[])
       selector = argv[1];
    }
 
-   kms_message_init ();
+   int ret = kms_message_init ();
+   if (ret != 0) {
+      printf ("kms_message_init failed: 0x%x\n", ret);
+      abort ();
+   }
 
    RUN_TEST (example_signature_test);
    RUN_TEST (path_normalization_test);

@@ -36,6 +36,17 @@ EVP_MD_CTX_free (EVP_MD_CTX *ctx)
 }
 #endif
 
+int
+kms_crypto_init ()
+{
+   return 0;
+}
+
+void
+kms_crypto_cleanup ()
+{
+}
+
 bool
 kms_sha256 (const char *input, size_t len, unsigned char *hash_out)
 {
@@ -56,4 +67,20 @@ cleanup:
    EVP_MD_CTX_free (digest_ctxp);
 
    return rval;
+}
+
+bool
+kms_sha256_hmac (const char *key_input,
+                 size_t key_len,
+                 const char *input,
+                 size_t len,
+                 unsigned char *hash_out)
+{
+   return HMAC (EVP_sha256 (),
+                key_input,
+                key_len,
+                (unsigned char *) input,
+                len,
+                hash_out,
+                NULL) != NULL;
 }

@@ -127,9 +127,7 @@ add_executable (
    test_kms_request
    src/b64.c
    src/hexlify.c
-   src/kms_encrypt_request.c
    src/kms_kv_list.c
-   src/kms_message.c
    test/test_kms_request.c
 )
 
