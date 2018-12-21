@@ -240,7 +240,7 @@ set_test_date (kms_request_t *request)
    // Ensure the date matches what strptime would return
    struct tm tm2;
    assert (strptime ("20150830T123600Z", "tt = dt.timetuple()", &tm2));
-   memcmp (&tm, &tm2, sizeof (struct tm));
+   assert (memcmp (&tm, &tm2, sizeof (struct tm)) == 0);
 #endif
    assert (kms_request_set_date (request, &tm));
 }

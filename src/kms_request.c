@@ -513,7 +513,7 @@ kms_request_hmac_again (unsigned char *out,
                         unsigned char *in,
                         kms_request_str_t *data)
 {
-   return kms_sha256_hmac (in, 32, data->str, data->len, out);
+   return kms_sha256_hmac ((char*)in, 32, data->str, data->len, out);
 }
 
 bool

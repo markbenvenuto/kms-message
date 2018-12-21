@@ -48,11 +48,13 @@ if ( MSVC )
     set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
 endif()
 
-# include (FindOpenSSL)
-# target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
-# target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
-
-target_link_libraries(kms_message "bcrypt")
+if (WIN32)
+   target_link_libraries(kms_message "bcrypt")
+else ()
+   include (FindOpenSSL)
+   target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
+   target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
+endif ()
 
 set_target_properties (kms_message PROPERTIES
    SOVERSION 0

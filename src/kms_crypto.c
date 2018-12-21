@@ -151,6 +151,7 @@ EVP_MD_CTX_free (EVP_MD_CTX *ctx)
 int
 kms_crypto_init ()
 {
+   return 0;
 }
 
 void
@@ -193,7 +194,7 @@ kms_sha256_hmac (const char *key_input,
                 key_len,
                 (unsigned char *) input,
                 len,
-                out,
+                hash_out,
                 NULL) != NULL;
 }
 

@@ -132,7 +132,6 @@ kms_kv_list_dup (const kms_kv_list_t *lst)
 /*
 https://github.com/freebsd/freebsd/blob/master/lib/libc/stdlib/merge.c
 
-/*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1992, 1993
@@ -203,5 +202,5 @@ void
 kms_kv_list_sort (kms_kv_list_t *lst, int (*cmp) (const void *, const void *))
 {
    /* A stable sort is required. */
-   insertionsort (lst->kvs, lst->len, sizeof (kms_kv_t), cmp);
+   insertionsort ((unsigned char*)(lst->kvs), lst->len, sizeof (kms_kv_t), cmp);
 }
