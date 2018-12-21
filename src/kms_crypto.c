@@ -16,6 +16,118 @@
 
 #include "kms_crypto.h"
 
+#ifdef _WIN32
+
+
+// tell windows.h not to include a bunch of headers we don't need:
+#define WIN32_LEAN_AND_MEAN
+
+// Tell windows.h not to define any NT status codes, so that we can
+// get the definitions from ntstatus.h, which has a more complete list.
+#define WIN32_NO_STATUS
+
+#include <windows.h>
+
+#undef WIN32_NO_STATUS
+
+// Obtain a definition for the ntstatus type.
+#include <winternl.h>
+
+// Add back in the status definitions so that macro expansions for
+// things like STILL_ACTIVE and WAIT_OBJECT_O can be resolved (they
+// expand to STATUS_ codes).
+#include <ntstatus.h>
+
+#include <bcrypt.h>
+
+BCRYPT_ALG_HANDLE _algoSHA256;
+BCRYPT_ALG_HANDLE _algoSHA256Hmac;
+
+int
+kms_crypto_init ()
+{
+   if (BCryptOpenAlgorithmProvider (
+          &_algoSHA256, BCRYPT_SHA256_ALGORITHM, MS_PRIMITIVE_PROVIDER, 0) !=
+       STATUS_SUCCESS) {
+      return 1;
+   }
+
+   if (BCryptOpenAlgorithmProvider (&_algoSHA256Hmac,
+                                    BCRYPT_SHA256_ALGORITHM,
+                                    MS_PRIMITIVE_PROVIDER,
+                                    BCRYPT_ALG_HANDLE_HMAC_FLAG) !=
+       STATUS_SUCCESS) {
+      return 2;
+   }
+
+
+   return 0;
+}
+
+void
+kms_crypto_cleanup ()
+{
+   /* TODO */
+}
+
+bool
+kms_sha256 (const char *input, size_t len, unsigned char *hash_out)
+{
+   BCRYPT_HASH_HANDLE hHash;
+
+   NTSTATUS status =
+      BCryptCreateHash (_algoSHA256, &hHash, NULL, 0, NULL, 0, 0);
+   if (status != STATUS_SUCCESS) {
+      return status;
+   }
+   status = BCryptHashData (hHash, (PUCHAR) (input), len, 0);
+   if (status != STATUS_SUCCESS) {
+      goto cleanup;
+   }
+
+   // Hardcode output length
+   status = BCryptFinishHash (hHash, hash_out, 256 / 8, 0);
+   if (status != STATUS_SUCCESS) {
+      goto cleanup;
+   }
+cleanup:
+   BCryptDestroyHash (hHash);
+
+   return status == STATUS_SUCCESS ? 1 : 0;
+}
+
+bool
+kms_sha256_hmac (const char *key_input,
+                 size_t key_len,
+                 const char *input,
+                 size_t len,
+                 unsigned char *hash_out)
+{
+   BCRYPT_HASH_HANDLE hHash;
+
+   NTSTATUS status = BCryptCreateHash (
+      _algoSHA256Hmac, &hHash, NULL, 0, (PUCHAR) key_input, key_len, 0);
+   if (status != STATUS_SUCCESS) {
+      return status;
+   }
+   status = BCryptHashData (hHash, (PUCHAR) (input), len, 0);
+   if (status != STATUS_SUCCESS) {
+      goto cleanup;
+   }
+
+   // Hardcode output length
+   status = BCryptFinishHash (hHash, hash_out, 256 / 8, 0);
+   if (status != STATUS_SUCCESS) {
+      goto cleanup;
+   }
+cleanup:
+   BCryptDestroyHash (hHash);
+
+   return status == STATUS_SUCCESS ? 1 : 0;
+}
+
+
+#else
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
@@ -35,6 +147,17 @@ EVP_MD_CTX_free (EVP_MD_CTX *ctx)
    free (ctx);
 }
 #endif
+
+int
+kms_crypto_init ()
+{
+}
+
+void
+kms_crypto_cleanup ()
+{
+}
+
 
 bool
 kms_sha256 (const char *input, size_t len, unsigned char *hash_out)
@@ -57,3 +180,22 @@ cleanup:
 
    return rval;
 }
+
+bool
+kms_sha256_hmac (const char *key_input,
+                 size_t key_len,
+                 const char *input,
+                 size_t len,
+                 unsigned char *hash_out)
+{
+   return HMAC (EVP_sha256 (),
+                key_input,
+                key_len,
+                (unsigned char *) input,
+                len,
+                out,
+                NULL) != NULL;
+}
+
+
+#endif

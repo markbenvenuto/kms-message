@@ -367,8 +367,8 @@ b64_pton_do (char const *src, uint8_t *target, size_t targsize)
          if (ch != Pad64)
             return (-1);
          ch = *src++; /* Skip the = */
-      /* Fall through to "single trailing =" case. */
-      /* FALLTHROUGH */
+         /* Fall through to "single trailing =" case. */
+         /* FALLTHROUGH */
 
       case 3: /* Valid, means two bytes of info */
          /*
@@ -469,8 +469,8 @@ b64_pton_len (char const *src)
          if (ch != Pad64)
             return (-1);
          ch = *src++; /* Skip the = */
-      /* Fall through to "single trailing =" case. */
-      /* FALLTHROUGH */
+         /* Fall through to "single trailing =" case. */
+         /* FALLTHROUGH */
 
       case 3: /* Valid, means two bytes of info */
          /*

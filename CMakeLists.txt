@@ -40,16 +40,19 @@ add_library (
 )
 
 if ( CMAKE_COMPILER_IS_GNUCC )
-    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-function  -Werror")
-    #set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-function -Werror=implicit-function-declaration -Werror")
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wno-unused-function  -Werror")
+    #set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wno-unused-function -Werror=implicit-function-declaration -Werror")
 endif()
 if ( MSVC )
-    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} /W3 /WX")
+    #set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /W3 /WX /D_CRT_SECURE_NO_WARNINGS")
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
 endif()
 
-include (FindOpenSSL)
-target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
-target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
+# include (FindOpenSSL)
+# target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
+# target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
+
+target_link_libraries(kms_message "bcrypt")
 
 set_target_properties (kms_message PROPERTIES
    SOVERSION 0
@@ -135,9 +138,9 @@ add_executable (
    test_kms_request
    src/b64.c
    src/hexlify.c
-   src/kms_encrypt_request.c
+   #src/kms_encrypt_request.c
    src/kms_kv_list.c
-   src/kms_message.c
+   #src/kms_message.c
    test/test_kms_request.c
 )
 

@@ -21,7 +21,11 @@
 #include "src/kms_message_private.h"
 
 #include <assert.h>
+#ifndef _WIN32
 #include <dirent.h>
+#else
+#include "windows/dirent.h"
+#endif
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -33,6 +37,7 @@
 #include <src/hexlify.h>
 #include <src/kms_request_str.h>
 #include <src/kms_kv_list.h>
+#include <src/kms_port.h>
 
 #define ASSERT_CONTAINS(_a, _b)                                              \
    do {                                                                      \
@@ -120,6 +125,58 @@ test_file_path (const char *path, const char *suffix)
    return r;
 }
 
+void
+realloc_buffer (char **buffer, size_t *n, size_t len)
+{
+   if (*buffer == NULL) {
+      *buffer = malloc (len);
+   } else {
+      *buffer = realloc (*buffer, len);
+   }
+   *n = len;
+}
+
+ssize_t
+test_getline (char **lineptr, size_t *n, FILE *stream)
+{
+   if (*lineptr == NULL && *n == 0) {
+      realloc_buffer (lineptr, n, 128);
+   };
+
+   // Sanity check
+   if ((*lineptr == NULL && *n != 0) || (*lineptr != NULL && *n == 0)) {
+      abort ();
+   }
+
+   ssize_t count = 0;
+
+   while (true) {
+      // Read a character
+      int c = fgetc (stream);
+      if (c == EOF) {
+         if (count > 0) {
+            return count;
+         }
+
+         return -1;
+      }
+      // If the buffer is full, grow the buffer
+      if ((*n - count) == 1) {
+         realloc_buffer (lineptr, n, *n + 128);
+      }
+
+      *(*lineptr + count) = c;
+
+      ++count;
+      // If we hit the end of the line, we are done
+      if (c == '\n') {
+         *(*lineptr + count) = '\0';
+
+         return count;
+      }
+   }
+}
+
 char *
 read_test (const char *path, const char *suffix)
 {
@@ -142,15 +199,21 @@ read_test (const char *path, const char *suffix)
 
    f_size = (size_t) file_stat.st_size;
    str = malloc (f_size + 1);
+   memset (str, 0, f_size + 1);
+   // WIndows and crlf trimming
+#ifndef _WIN32
    if (f_size != fread (str, 1, f_size, f)) {
       perror (file_path);
       abort ();
    }
+#else
+   fread (str, 1, f_size, f);
+#endif
 
    fclose (f);
    str[f_size] = '\0';
 
-   free(file_path);
+   free (file_path);
 
    return str;
 }
@@ -161,7 +224,24 @@ set_test_date (kms_request_t *request)
    struct tm tm;
 
    /* all tests use the same date and time */
-   assert (strptime ("20150830T123600Z", "%Y%m%dT%H%M%SZ", &tm));
+   tm.tm_year = 115;
+   tm.tm_mon = 7;
+   tm.tm_mday = 30;
+
+   tm.tm_yday = 242;
+   tm.tm_wday = 6;
+
+   tm.tm_hour = 12;
+   tm.tm_min = 36;
+   tm.tm_sec = 0;
+   tm.tm_isdst = -1;
+
+#ifndef _WIN32
+   // Ensure the date matches what strptime would return
+   struct tm tm2;
+   assert (strptime ("20150830T123600Z", "tt = dt.timetuple()", &tm2));
+   memcmp (&tm, &tm2, sizeof (struct tm));
+#endif
    assert (kms_request_set_date (request, &tm));
 }
 
@@ -171,7 +251,7 @@ read_req (const char *path)
    kms_request_t *request;
    char *file_path = test_file_path (path, "req");
    FILE *f;
-   size_t len;
+   size_t len = 0;
    ssize_t line_len;
    char *line = NULL;
    char *method;
@@ -187,7 +267,7 @@ read_req (const char *path)
    }
 
    /* like "GET /path HTTP/1.1" */
-   line_len = getline (&line, &len, f);
+   line_len = test_getline (&line, &len, f);
    method = strndup (line, strchr (line, ' ') - line);
    uri_path = strndup (line + strlen (method) + 1,
                        line_len - strlen (method) - 1 - strlen (" HTTP/1.1\n"));
@@ -201,7 +281,7 @@ read_req (const char *path)
    kms_request_set_secret_key (request,
                                "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY");
 
-   while ((line_len = getline (&line, &len, f)) != -1) {
+   while ((line_len = test_getline (&line, &len, f)) != -1) {
       if (strchr (line, ':')) {
          /* new header field like Host:example.com */
          field_name = strtok (line, ": ");
@@ -223,7 +303,7 @@ read_req (const char *path)
       }
    }
 
-   while ((line_len = getline (&line, &len, f)) != -1) {
+   while ((line_len = test_getline (&line, &len, f)) != -1) {
       kms_request_append_payload (request, line, (size_t) line_len);
    }
 
@@ -530,6 +610,8 @@ append_header_field_value_test (void)
 void
 set_date_test (void)
 {
+   // Windows CRT on this negative test because it is a negative test
+#ifndef _WIN32
    struct tm tm = {0};
    kms_request_t *request = kms_request_new ("GET", "/", NULL);
 
@@ -537,6 +619,7 @@ set_date_test (void)
    assert (!kms_request_set_date (request, &tm));
    ASSERT_CONTAINS (kms_request_get_error (request), "Invalid tm struct");
    kms_request_destroy (request);
+#endif
 }
 
 void
@@ -664,6 +747,7 @@ kv_list_del_test (void)
    kms_kv_list_destroy (lst);
 }
 
+// Test fails because it state is across DLLs
 void
 b64_test (void)
 {
@@ -689,7 +773,7 @@ kms_response_parser_test (void)
    int bytes_to_read = 0;
    kms_response_t *response;
 
-   response_file = fopen ("./test/example-response.bin", "r");
+   response_file = fopen ("./test/example-response.bin", "rb");
    ASSERT (response_file);
 
    while ((bytes_to_read = kms_response_parser_wants_bytes (parser, 512)) > 0) {
@@ -754,7 +838,13 @@ main (int argc, char *argv[])
       selector = argv[1];
    }
 
-   kms_message_init ();
+   kms_message_b64_initialize_rmap ();
+
+   int ret = kms_message_init ();
+   if (ret != 0) {
+      printf ("kms_message_init failed: 0x%x\n", ret);
+      abort ();
+   }
 
    RUN_TEST (example_signature_test);
    RUN_TEST (path_normalization_test);

@@ -20,7 +20,21 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+int
+kms_crypto_init ();
+
+void
+kms_crypto_cleanup ();
+
 bool
 kms_sha256 (const char *input, size_t len, unsigned char *hash_out);
+
+bool
+kms_sha256_hmac (const char *key_input,
+                 size_t key_len,
+                 const char *input,
+                 size_t len,
+                 unsigned char *hash_out);
+
 
 #endif /* KMS_MESSAGE_KMS_CRYPTO_H */
