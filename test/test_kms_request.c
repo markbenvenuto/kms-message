@@ -749,8 +749,6 @@ main (int argc, char *argv[])
       selector = argv[1];
    }
 
-   kms_message_b64_initialize_rmap ();
-
    int ret = kms_message_init ();
    if (ret != 0) {
       printf ("kms_message_init failed: 0x%x\n", ret);
