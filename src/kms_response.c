@@ -29,3 +29,7 @@ kms_response_destroy (kms_response_t *response)
    kms_request_str_destroy (response->body);
    free (response);
 }
+
+const char * kms_response_get_body (kms_response_t *response) {
+   return response->body->str;
+}
