@@ -21,8 +21,6 @@
 #include "kms_request_opt_private.h"
 
 #include <assert.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
 
 static kms_kv_list_t *
 parse_query_params (kms_request_str_t *q)
@@ -502,13 +500,7 @@ kms_request_hmac (unsigned char *out,
                   kms_request_str_t *key,
                   kms_request_str_t *data)
 {
-   return HMAC (EVP_sha256 (),
-                key->str,
-                (int) key->len,
-                (unsigned char *) data->str,
-                data->len,
-                out,
-                NULL) != NULL;
+   return kms_sha256_hmac (key->str, (int) key->len, data->str, data->len, out);
 }
 
 static bool
@@ -516,13 +508,7 @@ kms_request_hmac_again (unsigned char *out,
                         unsigned char *in,
                         kms_request_str_t *data)
 {
-   return HMAC (EVP_sha256 (),
-                in,
-                32,
-                (unsigned char *) data->str,
-                data->len,
-                out,
-                NULL) != NULL;
+   return kms_sha256_hmac ((const char*)in, 32, data->str, data->len, out);
 }
 
 bool
@@ -536,7 +522,7 @@ kms_request_get_signing_key (kms_request_t *request, unsigned char *key)
    unsigned char k_service[32];
 
    if (request->failed) {
-      return NULL;
+      return false;
    }
 
    /* docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html

@@ -24,8 +24,6 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
 
 bool rfc_3986_tab[256] = {0};
 bool kms_initialized = false;
