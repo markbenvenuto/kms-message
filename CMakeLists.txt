@@ -10,8 +10,7 @@ include (CheckCCompilerFlag)
 # All targets obey visibility, not just library targets.
 cmake_policy (SET CMP0063 NEW)
 set (CMAKE_C_VISIBILITY_PRESET hidden)
-add_library (
-   kms_message SHARED
+set (KMS_MESSAGE_SOURCES
    src/b64.c
    src/b64.h
    src/hexlify.c
@@ -37,6 +36,10 @@ add_library (
    src/kms_request_str.h
    src/kms_response.c
    src/kms_response_parser.c
+   )
+add_library (
+   kms_message SHARED
+   ${KMS_MESSAGE_SOURCES}
 )
 
 include (FindOpenSSL)
@@ -125,11 +128,9 @@ install (
 
 add_executable (
    test_kms_request
-   src/b64.c
-   src/hexlify.c
-   src/kms_kv_list.c
+   ${KMS_MESSAGE_SOURCES}
    test/test_kms_request.c
 )
 
-target_link_libraries (test_kms_request kms_message)
-target_include_directories (test_kms_request PRIVATE ${PROJECT_SOURCE_DIR})
+target_link_libraries(test_kms_request "${OPENSSL_LIBRARIES}")
+target_include_directories(test_kms_request PRIVATE "${OPENSSL_INCLUDE_DIR}" ${PROJECT_SOURCE_DIR})
