@@ -18,6 +18,8 @@
 #include "kms_kv_list.h"
 #include "kms_message/kms_message.h"
 #include "kms_request_str.h"
+#include "kms_port.h"
+#include "sort.h"
 
 static void
 kv_init (kms_kv_t *kv, kms_request_str_t *key, kms_request_str_t *value)
@@ -127,8 +129,11 @@ kms_kv_list_dup (const kms_kv_list_t *lst)
    return dup;
 }
 
+
 void
 kms_kv_list_sort (kms_kv_list_t *lst, int (*cmp) (const void *, const void *))
 {
-   (void) qsort (lst->kvs, lst->len, sizeof (kms_kv_t), cmp);
+   /* A stable sort is required. qsort is not stable. */
+   insertionsort (
+      (unsigned char *) (lst->kvs), lst->len, sizeof (kms_kv_t), cmp);
 }

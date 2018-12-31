@@ -19,6 +19,7 @@
 #include "kms_message/kms_message.h"
 #include "kms_message_private.h"
 #include "kms_request_opt_private.h"
+#include "kms_port.h"
 
 #include <assert.h>
 
@@ -142,7 +143,11 @@ kms_request_set_date (kms_request_t *request, const struct tm *tm)
       /* use current time */
       time_t t;
       time (&t);
+#ifdef _WIN32
+      gmtime_s (&tmp_tm, &t);
+#else
       gmtime_r (&t, &tmp_tm);
+#endif
       tm = &tmp_tm;
    }
 
@@ -508,7 +513,7 @@ kms_request_hmac_again (unsigned char *out,
                         unsigned char *in,
                         kms_request_str_t *data)
 {
-   return kms_sha256_hmac ((const char*)in, 32, data->str, data->len, out);
+   return kms_sha256_hmac ((const char *) in, 32, data->str, data->len, out);
 }
 
 bool

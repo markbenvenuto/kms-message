@@ -15,23 +15,7 @@
  * limitations under the License.
  */
 
-#include "kms_message/kms_message.h"
-#include "kms_message_private.h"
-#include "kms_request_str.h"
+typedef int (*cmp_t) (const void *, const void *);
 
 void
-kms_response_destroy (kms_response_t *response)
-{
-   if (response == NULL) {
-      return;
-   }
-   kms_kv_list_destroy (response->headers);
-   kms_request_str_destroy (response->body);
-   free (response);
-}
-
-const char *
-kms_response_get_body (kms_response_t *response)
-{
-   return response->body->str;
-}
+insertionsort (unsigned char *a, size_t n, size_t size, cmp_t cmp);

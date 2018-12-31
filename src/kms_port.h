@@ -15,23 +15,21 @@
  * limitations under the License.
  */
 
-#include "kms_message/kms_message.h"
-#include "kms_message_private.h"
-#include "kms_request_str.h"
+#if defined(_WIN32)
+#define strcasecmp _stricmp
 
-void
-kms_response_destroy (kms_response_t *response)
+inline char *
+strndup (char *src, int len)
 {
-   if (response == NULL) {
-      return;
+   char *dst = (char *) malloc (len + 1);
+   if (!dst) {
+      return 0;
    }
-   kms_kv_list_destroy (response->headers);
-   kms_request_str_destroy (response->body);
-   free (response);
+
+   memcpy (dst, src, len);
+   dst[len] = '\0';
+
+   return dst;
 }
 
-const char *
-kms_response_get_body (kms_response_t *response)
-{
-   return response->body->str;
-}
+#endif

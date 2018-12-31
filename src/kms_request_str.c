@@ -18,6 +18,7 @@
 #include "kms_crypto.h"
 #include "kms_message/kms_message.h"
 #include "kms_request_str.h"
+#include "kms_port.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -333,7 +334,8 @@ kms_request_str_append_stripped (kms_request_str_t *str,
 
    kms_request_str_reserve (str, appended->len);
 
-   while (isspace (*src)) {
+   // msvcrt is unhappy when it gets non-ANSI characters in isspace
+   while (*src >= 0 && isspace (*src)) {
       ++src;
    }
 
@@ -343,7 +345,7 @@ kms_request_str_append_stripped (kms_request_str_t *str,
       if (*src == '\n') {
          comma = true;
          space = false;
-      } else if (isspace (*src)) {
+      } else if (*src >= 0 && isspace (*src)) {
          space = true;
       } else {
          if (comma) {
