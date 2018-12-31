@@ -15,7 +15,6 @@ set (KMS_MESSAGE_SOURCES
    src/b64.h
    src/hexlify.c
    src/hexlify.h
-   src/kms_crypto.c
    src/kms_crypto.h
    src/kms_decrypt_request.c
    src/kms_encrypt_request.c
@@ -37,10 +36,22 @@ set (KMS_MESSAGE_SOURCES
    src/kms_response.c
    src/kms_response_parser.c
    )
+
+if (WIN32)
+   set (KMS_MESSAGE_SOURCES ${KMS_MESSAGE_SOURCES}
+      src/kms_crypto_windows.c
+   )
+else()
+   set (KMS_MESSAGE_SOURCES ${KMS_MESSAGE_SOURCES}
+      src/kms_crypto_openssl.c
+   )
+endif()
+
 add_library (
    kms_message SHARED
    ${KMS_MESSAGE_SOURCES}
 )
+
 
 if ( CMAKE_COMPILER_IS_GNUCC )
     set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-function  -Werror")
