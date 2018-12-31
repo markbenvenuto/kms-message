@@ -35,6 +35,7 @@ set (KMS_MESSAGE_SOURCES
    src/kms_request_str.h
    src/kms_response.c
    src/kms_response_parser.c
+   src/sort.c
    )
 
 if (WIN32)
@@ -52,17 +53,20 @@ add_library (
    ${KMS_MESSAGE_SOURCES}
 )
 
+if (WIN32)
+   target_link_libraries(kms_message "bcrypt")
+else()
+   include (FindOpenSSL)
+   target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
+   target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
+endif()
 
 if ( CMAKE_COMPILER_IS_GNUCC )
     set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-function  -Werror")
 endif()
 if ( MSVC )
-    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} /W3 /WX")
+    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} /W3 /D_CRT_SECURE_NO_WARNINGS")
 endif()
-
-include (FindOpenSSL)
-target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
-target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
 
 set_target_properties (kms_message PROPERTIES
    SOVERSION 0
@@ -149,6 +153,12 @@ add_executable (
    ${KMS_MESSAGE_SOURCES}
    test/test_kms_request.c
 )
+target_include_directories(test_kms_request PRIVATE  ${PROJECT_SOURCE_DIR})
 
-target_link_libraries(test_kms_request "${OPENSSL_LIBRARIES}")
-target_include_directories(test_kms_request PRIVATE "${OPENSSL_INCLUDE_DIR}" ${PROJECT_SOURCE_DIR})
+if (WIN32)
+   target_link_libraries(test_kms_request "bcrypt")
+else()
+   include (FindOpenSSL)
+   target_link_libraries(test_kms_request "${OPENSSL_LIBRARIES}")
+   target_include_directories(test_kms_request PRIVATE "${OPENSSL_INCLUDE_DIR}")
+endif()
