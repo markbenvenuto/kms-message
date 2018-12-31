@@ -42,6 +42,10 @@ if (WIN32)
    set (KMS_MESSAGE_SOURCES ${KMS_MESSAGE_SOURCES}
       src/kms_crypto_windows.c
    )
+elseif (APPLE)
+   set (KMS_MESSAGE_SOURCES ${KMS_MESSAGE_SOURCES}
+      src/kms_crypto_apple.c
+   )
 else()
    set (KMS_MESSAGE_SOURCES ${KMS_MESSAGE_SOURCES}
       src/kms_crypto_openssl.c
@@ -61,6 +65,8 @@ add_library (
 if (WIN32)
    target_link_libraries(kms_message "bcrypt")
    target_link_libraries(kms_message_static "bcrypt")
+elseif (APPLE)
+   # Nothing
 else()
    include (FindOpenSSL)
    target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
@@ -70,12 +76,12 @@ else()
 endif()
 
 if ( CMAKE_COMPILER_IS_GNUCC )
-    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-function  -Werror")
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wno-unused-function  -Werror")
 endif()
 if ( MSVC )
     # W4273 - inconsistent dll linkage
     # W4996 - POSIX name for this item is deprecated
-    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} /W3 /wd4273 /wd4996 /D_CRT_SECURE_NO_WARNINGS /WX")
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /W3 /wd4273 /wd4996 /D_CRT_SECURE_NO_WARNINGS /WX")
 endif()
 
 set_target_properties (kms_message PROPERTIES
@@ -180,6 +186,8 @@ target_include_directories(test_kms_request PRIVATE  ${PROJECT_SOURCE_DIR})
 
 if (WIN32)
    target_link_libraries(test_kms_request "bcrypt")
+elseif (APPLE)
+   # Nothing
 else()
    include (FindOpenSSL)
    target_link_libraries(test_kms_request "${OPENSSL_LIBRARIES}")
