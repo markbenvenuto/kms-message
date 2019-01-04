@@ -62,7 +62,7 @@ void
 insertionsort (unsigned char *a, size_t n, size_t size, cmp_t cmp)
 {
    unsigned char *ai, *s, *t, *u, tmp;
-   int i;
+   size_t i;
 
    for (ai = a + size; --n >= 1; ai += size)
       for (t = ai; t > a; t -= size) {

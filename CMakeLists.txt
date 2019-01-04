@@ -65,7 +65,9 @@ if ( CMAKE_COMPILER_IS_GNUCC )
     set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-function  -Werror")
 endif()
 if ( MSVC )
-    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} /W3 /D_CRT_SECURE_NO_WARNINGS")
+    # W4273 - inconsistent dll linkage
+    # W4996 - POSIX name for this item is deprecated
+    set(CMAKE_C_FLAGS  "${CMAKE_CXX_FLAGS} /W3 /wd4273 /wd4996 /D_CRT_SECURE_NO_WARNINGS /WX")
 endif()
 
 set_target_properties (kms_message PROPERTIES

@@ -50,7 +50,7 @@ kms_response_parser_wants_bytes (kms_response_parser_t *parser, int32_t max)
    case PARSING_BODY:
       assert (parser->content_length != -1);
       return parser->content_length -
-             (parser->raw_response->len - parser->start);
+             ((int) parser->raw_response->len - parser->start);
    }
    return -1;
 }
@@ -191,7 +191,7 @@ kms_response_parser_feed (kms_response_parser_t *parser,
    kms_request_str_t *raw = parser->raw_response;
    int curr, body_read;
 
-   curr = raw->len;
+   curr = (int) raw->len;
    kms_request_str_append_chars (raw, (char *) buf, len);
    /* process the new data appended. */
    while (curr < raw->len) {
@@ -206,7 +206,7 @@ kms_response_parser_feed (kms_response_parser_t *parser,
          curr++;
          break;
       case PARSING_BODY:
-         body_read = raw->len - parser->start;
+         body_read = (int) raw->len - parser->start;
          assert (parser->content_length != -1);
          assert (body_read <= parser->content_length);
 
@@ -217,7 +217,7 @@ kms_response_parser_feed (kms_response_parser_t *parser,
             parser->state = PARSING_DONE;
          }
 
-         curr = raw->len;
+         curr = (int) raw->len;
          break;
       case PARSING_DONE:
          /* return false if error. */

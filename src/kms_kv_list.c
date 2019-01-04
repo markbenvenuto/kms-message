@@ -133,7 +133,8 @@ kms_kv_list_dup (const kms_kv_list_t *lst)
 void
 kms_kv_list_sort (kms_kv_list_t *lst, int (*cmp) (const void *, const void *))
 {
-   /* A stable sort is required. qsort is not stable. */
+   /* A stable sort is required to sort headers when creating canonical
+    * requests. qsort is not stable. */
    insertionsort (
       (unsigned char *) (lst->kvs), lst->len, sizeof (kms_kv_t), cmp);
 }
