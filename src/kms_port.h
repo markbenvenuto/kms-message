@@ -19,7 +19,7 @@
 #define strcasecmp _stricmp
 
 inline char *
-strndup (char *src, int len)
+strndup (const char *src, size_t len)
 {
    char *dst = (char *) malloc (len + 1);
    if (!dst) {

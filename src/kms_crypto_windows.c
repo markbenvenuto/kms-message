@@ -75,10 +75,10 @@ kms_sha256 (const char *input, size_t len, unsigned char *hash_out)
    NTSTATUS status =
       BCryptCreateHash (_algoSHA256, &hHash, NULL, 0, NULL, 0, 0);
    if (status != STATUS_SUCCESS) {
-      return status;
+      return 0;
    }
 
-   status = BCryptHashData (hHash, (PUCHAR) (input), len, 0);
+   status = BCryptHashData (hHash, (PUCHAR) (input), (ULONG) len, 0);
    if (status != STATUS_SUCCESS) {
       goto cleanup;
    }
@@ -105,12 +105,12 @@ kms_sha256_hmac (const char *key_input,
    BCRYPT_HASH_HANDLE hHash;
 
    NTSTATUS status = BCryptCreateHash (
-      _algoSHA256Hmac, &hHash, NULL, 0, (PUCHAR) key_input, key_len, 0);
+      _algoSHA256Hmac, &hHash, NULL, 0, (PUCHAR) key_input, (ULONG) key_len, 0);
    if (status != STATUS_SUCCESS) {
-      return status;
+      return 0;
    }
 
-   status = BCryptHashData (hHash, (PUCHAR) (input), len, 0);
+   status = BCryptHashData (hHash, (PUCHAR) input, (ULONG) len, 0);
    if (status != STATUS_SUCCESS) {
       goto cleanup;
    }
