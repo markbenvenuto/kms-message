@@ -42,7 +42,7 @@
 
 #include <ctype.h>
 #include "kms_message/kms_message.h"
-#include "b64.h"
+#include "kms_message/kms_b64.h"
 
 #define Assert(Cond) \
    if (!(Cond))      \

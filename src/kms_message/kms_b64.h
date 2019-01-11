@@ -17,19 +17,21 @@
 #ifndef KMS_MESSAGE_B64_H
 #define KMS_MESSAGE_B64_H
 
+#include "kms_message.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
-void
+KMS_MSG_EXPORT (void)
 kms_message_b64_initialize_rmap (void);
 
-int
+KMS_MSG_EXPORT (int)
 kms_message_b64_ntop (uint8_t const *src,
                       size_t srclength,
                       char *target,
                       size_t targsize);
 
-int
+KMS_MSG_EXPORT (int)
 kms_message_b64_pton (char const *src, uint8_t *target, size_t targsize);
 
 #endif /* KMS_MESSAGE_B64_H */

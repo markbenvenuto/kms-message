@@ -33,7 +33,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <src/b64.h>
+#include <src/kms_message/kms_b64.h>
 #include <src/hexlify.h>
 #include <src/kms_request_str.h>
 #include <src/kms_kv_list.h>
@@ -202,9 +202,9 @@ read_test (const char *path, const char *suffix)
    str = malloc (f_size + 1);
    memset (str, 0, f_size + 1);
 
-   // Windows will convert crlf to lf
-   // We want this behavior in this function call but
-   // it prevents us from validating we read the whole file here.
+// Windows will convert crlf to lf
+// We want this behavior in this function call but
+// it prevents us from validating we read the whole file here.
 #ifndef _WIN32
    if (f_size != fread (str, 1, f_size, f)) {
       perror (file_path);
@@ -217,7 +217,7 @@ read_test (const char *path, const char *suffix)
    fclose (f);
    str[f_size] = '\0';
 
-   free(file_path);
+   free (file_path);
 
    return str;
 }
@@ -607,8 +607,8 @@ append_header_field_value_test (void)
 void
 set_date_test (void)
 {
-   // Windows CRT asserts on this negative test because it is a negative test
-   // so it is skipped on Windows.
+// Windows CRT asserts on this negative test because it is a negative test
+// so it is skipped on Windows.
 #ifndef _WIN32
    struct tm tm = {0};
    kms_request_t *request = kms_request_new ("GET", "/", NULL);

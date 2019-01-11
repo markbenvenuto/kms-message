@@ -17,7 +17,7 @@
 
 #include "kms_message/kms_message.h"
 #include "kms_message_private.h"
-#include "b64.h"
+#include "kms_message/kms_b64.h"
 #include "kms_request_str.h"
 
 kms_request_t *

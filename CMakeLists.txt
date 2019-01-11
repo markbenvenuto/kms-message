@@ -11,8 +11,8 @@ include (CheckCCompilerFlag)
 cmake_policy (SET CMP0063 NEW)
 set (CMAKE_C_VISIBILITY_PRESET hidden)
 set (KMS_MESSAGE_SOURCES
-   src/b64.c
-   src/b64.h
+   src/kms_b64.c
+   src/kms_message/kms_b64.h
    src/hexlify.c
    src/hexlify.h
    src/kms_crypto.h
@@ -53,12 +53,20 @@ add_library (
    ${KMS_MESSAGE_SOURCES}
 )
 
+add_library (
+   kms_message_static STATIC
+   ${KMS_MESSAGE_SOURCES}
+)
+
 if (WIN32)
    target_link_libraries(kms_message "bcrypt")
+   target_link_libraries(kms_message_static "bcrypt")
 else()
    include (FindOpenSSL)
    target_link_libraries(kms_message "${OPENSSL_LIBRARIES}")
    target_include_directories(kms_message PRIVATE "${OPENSSL_INCLUDE_DIR}")
+   target_link_libraries(kms_message_static "${OPENSSL_LIBRARIES}")
+   target_include_directories(kms_message_static PRIVATE "${OPENSSL_INCLUDE_DIR}")
 endif()
 
 if ( CMAKE_COMPILER_IS_GNUCC )
@@ -77,13 +85,25 @@ set_target_properties (kms_message PROPERTIES
    INTERFACE_kms_message_MAJOR_VERSION 0
 )
 
+set_target_properties (kms_message_static PROPERTIES
+   SOVERSION 0
+   OUTPUT_NAME "kms_message"
+   PREFIX "lib"
+   INTERFACE_kms_message_MAJOR_VERSION 0
+   )
+
 target_compile_definitions (kms_message PRIVATE KMS_MSG_COMPILATION)
 set_property (TARGET kms_message APPEND PROPERTY
    COMPATIBLE_INTERFACE_STRING kms_message_MAJOR_VERSION
 )
 
+target_compile_definitions (kms_message_static PRIVATE KMS_MSG_COMPILATION)
+set_property (TARGET kms_message_static APPEND PROPERTY
+   COMPATIBLE_INTERFACE_STRING kms_message_MAJOR_VERSION
+   )
+
 include (CMakePackageConfigHelpers)
-install (TARGETS kms_message
+install (TARGETS kms_message kms_message_static
    EXPORT kms_message_targets
    LIBRARY DESTINATION lib
    ARCHIVE DESTINATION lib
@@ -93,6 +113,7 @@ install (TARGETS kms_message
 
 install (
    FILES
+   src/kms_message/kms_b64.h
    src/kms_message/kms_decrypt_request.h
    src/kms_message/kms_encrypt_request.h
    src/kms_message/kms_message.h
