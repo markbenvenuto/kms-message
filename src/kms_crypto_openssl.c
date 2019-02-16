@@ -22,13 +22,13 @@
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L || \
    (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
-EVP_MD_CTX *
+static EVP_MD_CTX *
 EVP_MD_CTX_new (void)
 {
    return calloc (sizeof (EVP_MD_CTX), 1);
 }
 
-void
+static void
 EVP_MD_CTX_free (EVP_MD_CTX *ctx)
 {
    EVP_MD_CTX_cleanup (ctx);
