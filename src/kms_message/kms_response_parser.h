@@ -20,6 +20,10 @@
 #include "kms_message.h"
 #include "kms_response.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _kms_response_parser_t kms_response_parser_t;
 
 KMS_MSG_EXPORT (kms_response_parser_t *)
@@ -38,5 +42,9 @@ kms_response_parser_get_response (kms_response_parser_t *parser);
 
 KMS_MSG_EXPORT (void)
 kms_response_parser_destroy (kms_response_parser_t *parser);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* KMS_RESPONSE_PARSER_H */

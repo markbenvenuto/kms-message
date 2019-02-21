@@ -22,6 +22,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 KMS_MSG_EXPORT (void)
 kms_message_b64_initialize_rmap (void);
 
@@ -33,5 +37,9 @@ kms_message_b64_ntop (uint8_t const *src,
 
 KMS_MSG_EXPORT (int)
 kms_message_b64_pton (char const *src, uint8_t *target, size_t targsize);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* KMS_MESSAGE_B64_H */

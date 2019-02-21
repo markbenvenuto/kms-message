@@ -21,6 +21,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _kms_request_opt_t kms_request_opt_t;
 
 KMS_MSG_EXPORT (kms_request_opt_t *)
@@ -30,5 +34,9 @@ kms_request_opt_destroy (kms_request_opt_t *request);
 KMS_MSG_EXPORT (void)
 kms_request_opt_set_connection_close (kms_request_opt_t *opt,
                                       bool connection_close);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* KMS_REQUEST_OPT_H */
