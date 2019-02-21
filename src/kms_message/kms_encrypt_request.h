@@ -20,7 +20,8 @@
 #include "kms_message.h"
 
 KMS_MSG_EXPORT (kms_request_t *)
-kms_encrypt_request_new (const char *plaintext,
+kms_encrypt_request_new (const uint8_t *plaintext,
+                         size_t plaintext_length,
                          const char *key_id,
                          const kms_request_opt_t *opt);
 

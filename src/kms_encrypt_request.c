@@ -21,11 +21,11 @@
 #include "kms_request_str.h"
 
 kms_request_t *
-kms_encrypt_request_new (const char *plaintext,
+kms_encrypt_request_new (const uint8_t *plaintext,
+                         size_t plaintext_length,
                          const char *key_id,
                          const kms_request_opt_t *opt)
 {
-   size_t plain_len;
    kms_request_t *request;
    size_t b64_len;
    char *b64 = NULL;
@@ -43,8 +43,7 @@ kms_encrypt_request_new (const char *plaintext,
       goto done;
    }
 
-   plain_len = strlen (plaintext);
-   b64_len = (plain_len / 3 + 1) * 4 + 1;
+   b64_len = (plaintext_length / 3 + 1) * 4 + 1;
    if (!(b64 = malloc (b64_len))) {
       KMS_ERROR (request,
                  "Could not allocate %d bytes for base64-encoding payload",
@@ -53,7 +52,7 @@ kms_encrypt_request_new (const char *plaintext,
    }
 
    if (kms_message_b64_ntop (
-          (const uint8_t *) plaintext, plain_len, b64, b64_len) == -1) {
+          (const uint8_t *) plaintext, plaintext_length, b64, b64_len) == -1) {
       KMS_ERROR (request, "Could not base64-encode plaintext");
       goto done;
    }

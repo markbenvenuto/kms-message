@@ -703,7 +703,8 @@ decrypt_request_test (void)
 void
 encrypt_request_test (void)
 {
-   kms_request_t *request = kms_encrypt_request_new ("foobar", "alias/1", NULL);
+   char* plaintext = "foobar";
+   kms_request_t *request = kms_encrypt_request_new ((uint8_t*) plaintext, strlen(plaintext), "alias/1", NULL);
 
    set_test_date (request);
    kms_request_set_region (request, "us-east-1");
