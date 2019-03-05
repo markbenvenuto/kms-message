@@ -76,7 +76,7 @@ else()
 endif()
 
 if ( CMAKE_COMPILER_IS_GNUCC )
-    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wno-unused-function  -Werror")
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wno-unused-function -Wsign-compare -Werror")
 endif()
 if ( MSVC )
     # W4273 - inconsistent dll linkage

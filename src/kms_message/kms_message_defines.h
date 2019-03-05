@@ -40,9 +40,17 @@
 
 #define KMS_MSG_EXPORT(type) KMS_MSG_API type KMS_MSG_CALL
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 KMS_MSG_EXPORT (int)
 kms_message_init (void);
 KMS_MSG_EXPORT (void)
 kms_message_cleanup (void);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* KMS_MESSAGE_DEFINES_H */

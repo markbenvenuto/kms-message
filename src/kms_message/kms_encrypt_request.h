@@ -19,9 +19,18 @@
 
 #include "kms_message.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 KMS_MSG_EXPORT (kms_request_t *)
 kms_encrypt_request_new (const char *plaintext,
                          const char *key_id,
                          const kms_request_opt_t *opt);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
 
 #endif /* KMS_ENCRYPT_REQUEST_H */

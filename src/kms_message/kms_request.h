@@ -24,6 +24,10 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _kms_request_t kms_request_t;
 
 KMS_MSG_EXPORT (kms_request_t *)
@@ -66,5 +70,9 @@ KMS_MSG_EXPORT (char *)
 kms_request_get_signature (kms_request_t *request);
 KMS_MSG_EXPORT (char *)
 kms_request_get_signed (kms_request_t *request);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* KMS_REQUEST_H */

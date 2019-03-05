@@ -194,7 +194,7 @@ kms_response_parser_feed (kms_response_parser_t *parser,
    curr = (int) raw->len;
    kms_request_str_append_chars (raw, (char *) buf, len);
    /* process the new data appended. */
-   while (curr < raw->len) {
+   while (curr < (int) raw->len) {
       switch (parser->state) {
       case PARSING_STATUS_LINE:
       case PARSING_HEADER:
