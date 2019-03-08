@@ -775,9 +775,9 @@ kms_response_parser_test (void)
    ASSERT (response_file);
 
    while ((bytes_to_read = kms_response_parser_wants_bytes (parser, 512)) > 0) {
-      size_t ret = (int) fread (buf, 1, (size_t) bytes_to_read, response_file);
+      size_t ret = fread (buf, 1, (size_t) bytes_to_read, response_file);
 
-      ASSERT (ret != -1);
+      ASSERT (ret == (size_t) bytes_to_read);
       ASSERT (kms_response_parser_feed (parser, buf, (int) ret));
    }
 

@@ -277,7 +277,7 @@ kms_request_str_appendf (kms_request_str_t *str, const char *format, ...)
       n = vsnprintf (&str->str[str->len], remaining, format, args);
       va_end (args);
 
-      if (n > -1 && n < remaining) {
+      if (n > -1 && (size_t) n < remaining) {
          /* success */
          str->len += (size_t) n;
          return;
