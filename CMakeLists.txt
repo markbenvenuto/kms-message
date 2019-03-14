@@ -93,7 +93,7 @@ set_target_properties (kms_message PROPERTIES
 
 set_target_properties (kms_message_static PROPERTIES
    SOVERSION 0
-   OUTPUT_NAME "kms_message"
+   OUTPUT_NAME "kms_message-static"
    PREFIX "lib"
    INTERFACE_kms_message_MAJOR_VERSION 0
    )
@@ -104,6 +104,7 @@ set_property (TARGET kms_message APPEND PROPERTY
 )
 
 target_compile_definitions (kms_message_static PRIVATE KMS_MSG_COMPILATION)
+target_compile_definitions (kms_message_static PUBLIC KMS_MSG_STATIC)
 set_property (TARGET kms_message_static APPEND PROPERTY
    COMPATIBLE_INTERFACE_STRING kms_message_MAJOR_VERSION
    )
